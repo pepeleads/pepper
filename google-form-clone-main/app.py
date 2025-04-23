@@ -9,6 +9,8 @@ import PyPDF2
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
 import json
+import random
+import requests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -300,6 +302,8 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+
+
 @app.route('/form/<int:form_id>/submit', methods=['POST'])
 def submit_form(form_id):
     form = Form.query.get_or_404(form_id)
@@ -318,6 +322,11 @@ def submit_form(form_id):
         
         # Process form data
         form_data = request.form.to_dict(flat=False)
+        
+        # For debugging
+        print("Received form data:")
+        for key, value in form_data.items():
+            print(f"{key}: {value}")
         
         # Handle main questions
         for question in form.questions:
@@ -344,17 +353,12 @@ def submit_form(form_id):
                 if question.question_type in ['radio', 'multiple_choice', 'checkbox'] and answer_text:
                     selected_options = answer_text.split(', ') if question.question_type == 'checkbox' else [answer_text]
                     
-                    # Find subquestions for these selected options
-                    for selected_option in selected_options:
-                        # Get level 1 subquestions for this option
-                        subquestions = SubQuestion.query.filter_by(
-                            question_id=question.id,
-                            parent_option=selected_option,
-                            nesting_level=1
-                        ).all()
-                        
-                        # Process each subquestion
-                        for subq in subquestions:
+                    # Process all subquestions directly using subq_id pattern
+                    subquestions = SubQuestion.query.filter_by(question_id=question.id).all()
+                    
+                    for subq in subquestions:
+                        # Only process subquestions matching the selected parent option
+                        if any(opt in subq.parent_option for opt in selected_options):
                             subq_field_name = f'subq_{subq.id}'
                             
                             if subq.question_type == 'checkbox':
@@ -372,47 +376,35 @@ def submit_form(form_id):
                                     answer_text=subq_answer
                                 )
                                 db.session.add(sq_answer)
-                                
-                                # Handle level 2 nested subquestions
-                                if subq.question_type in ['radio', 'multiple_choice', 'checkbox']:
-                                    nested_selected_options = subq_answer.split(', ') if subq.question_type == 'checkbox' else [subq_answer]
-                                    
-                                    for nested_option in nested_selected_options:
-                                        nested_parent = f"{selected_option}|{nested_option}"
-                                        nested_subqs = SubQuestion.query.filter_by(
-                                            question_id=question.id,
-                                            parent_option=nested_parent,
-                                            nesting_level=2
-                                        ).all()
-                                        
-                                        for nested_subq in nested_subqs:
-                                            nested_field_name = f'nested_subq_{nested_subq.id}'
-                                            
-                                            if nested_subq.question_type == 'checkbox':
-                                                nested_values = request.form.getlist(nested_field_name)
-                                                nested_answer = ', '.join(nested_values) if nested_values else None
-                                            else:
-                                                nested_values = form_data.get(nested_field_name, [])
-                                                nested_answer = nested_values[0] if nested_values else None
-                                            
-                                            if nested_answer:
-                                                nested_sq_answer = SubQuestionAnswer(
-                                                    response_id=response.id,
-                                                    subquestion_id=nested_subq.id,
-                                                    selected_option=nested_answer if nested_subq.question_type in ['radio', 'multiple_choice', 'checkbox'] else None,
-                                                    answer_text=nested_answer
-                                                )
-                                                db.session.add(nested_sq_answer)
         
         # Commit all the answers and subquestion answers
         db.session.commit()
-        flash('Form submitted successfully!')
-        return redirect(url_for('form_submitted', form_id=form_id))
-    
+        
+        # Send postback requests after successful form submission
+        try:
+            base_urls = [
+                "https://surveytitans.com/postback/7b7662e8159314ef0bdb32bf038bba29?",
+                "https://surveytitans.com/postback/db2321a6b97f71653fd07f2ac70af751?"
+            ]
+            payout_options = [100, 75, 35, 25, 75, 20, 30, 40, 50, 85]
+            
+            for base in base_urls:
+                pts = random.choice(payout_options)
+                url = f"{base}payout={pts/100.0:.2f}"
+                # Send the postback request
+                requests.get(url)
+                print(f"Postback sent to: {url}")
+                
+        except Exception as e:
+            print(f"Error sending postback: {str(e)}")
+            # Continue execution even if postback fails
+            
+        # Return a success message instead of redirecting
+        return jsonify({"status": "success", "message": "Form submitted successfully"}), 200
+        
     except Exception as e:
         db.session.rollback()
-        flash(f'Error submitting form: {str(e)}')
-        return redirect(url_for('view_form', form_id=form_id))
+        return jsonify({"status": "error", "message": f"Error submitting form: {str(e)}"}), 500
 
 
 # Add a success page route

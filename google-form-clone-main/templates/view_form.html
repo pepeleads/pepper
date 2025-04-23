@@ -119,25 +119,25 @@
                         <label class="form-label">{{ subq.text }}</label>
                         
                         {% if subq.type == 'text' %}
-                          <input type="text" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}" 
+                          <input type="text" class="form-control" name="subq_{{ subq.id }}" 
                                  placeholder="Your answer">
                         
                         {% elif subq.type == 'number' %}
-                          <input type="number" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}" 
+                          <input type="number" class="form-control" name="subq_{{ subq.id }}" 
                                  placeholder="Enter a number">
                         
                         {% elif subq.type == 'email' %}
-                          <input type="email" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}" 
+                          <input type="email" class="form-control" name="subq_{{ subq.id }}" 
                                  placeholder="you@example.com">
                         
                         {% elif subq.type == 'date' %}
-                          <input type="date" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}">
+                          <input type="date" class="form-control" name="subq_{{ subq.id }}">
                         
                         {% elif subq.type == 'file' %}
-                          <input type="file" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}">
+                          <input type="file" class="form-control" name="subq_{{ subq.id }}">
                         
                         {% elif subq.type == 'password' %}
-                          <input type="password" class="form-control" name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}" 
+                          <input type="password" class="form-control" name="subq_{{ subq.id }}" 
                                  placeholder="Enter password">
                         
                         {% elif subq.type in ['radio', 'checkbox'] and subq.options %}
@@ -146,7 +146,7 @@
                             <div class="form-check">
                               <input class="form-check-input nested-input" 
                                      type="{{ subq.type }}" 
-                                     name="question_{{ question.id }}_sub_{{ outer_idx }}_{{ subq_idx }}" 
+                                     name="subq_{{ subq.id }}" 
                                      id="sub_{{ question.id }}_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}" 
                                      data-suboption-index="{{ sub_idx }}"
                                      value="{{ option.text }}">
@@ -166,30 +166,30 @@
                                     
                                     {% if nested_subq.type == 'text' %}
                                       <input type="text" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}" 
+                                             name="nested_subq_{{ nested_subq.id }}" 
                                              placeholder="Your answer">
                                     
                                     {% elif nested_subq.type == 'number' %}
                                       <input type="number" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}" 
+                                             name="nested_subq_{{ nested_subq.id }}" 
                                              placeholder="Enter a number">
                                     
                                     {% elif nested_subq.type == 'email' %}
                                       <input type="email" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}" 
+                                             name="nested_subq_{{ nested_subq.id }}" 
                                              placeholder="you@example.com">
                                     
                                     {% elif nested_subq.type == 'date' %}
                                       <input type="date" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}">
+                                             name="nested_subq_{{ nested_subq.id }}">
                                     
                                     {% elif nested_subq.type == 'file' %}
                                       <input type="file" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}">
+                                             name="nested_subq_{{ nested_subq.id }}">
                                     
                                     {% elif nested_subq.type == 'password' %}
                                       <input type="password" class="form-control" 
-                                             name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}" 
+                                             name="nested_subq_{{ nested_subq.id }}" 
                                              placeholder="Enter password">
                                     
                                     {% elif nested_subq.type in ['radio', 'checkbox'] %}
@@ -198,7 +198,7 @@
                                           <div class="form-check">
                                             <input class="form-check-input" 
                                                    type="{{ nested_subq.type }}" 
-                                                   name="question_{{ question.id }}_nested_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}" 
+                                                   name="nested_subq_{{ nested_subq.id }}" 
                                                    id="nested_{{ question.id }}_{{ outer_idx }}_{{ subq_idx }}_{{ sub_idx }}_{{ nested_idx }}_{{ i }}" 
                                                    value="Option {{ i + 1 }}">
                                             <label class="form-check-label" 
@@ -238,6 +238,10 @@
         </div>
       </div>
     {% endfor %}
+    
+    <!-- Add this right before the submit button -->
+    <div id="submission-debug" class="alert alert-info" style="display: none;"></div>
+    
     <div class="d-grid">
       <button type="submit" class="btn btn-primary btn-lg">Submit Form</button>
     </div>
@@ -344,7 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Serialize dragdrop answers before form submission
   const form = document.getElementById('response-form');
-  form.addEventListener('submit', () => {
+  form.addEventListener('submit', function(e) {
+    // Prevent default form submission
+    e.preventDefault();
+    
+    // Serialize dragdrop answers
     dropZones.forEach(zone => {
       const qid = zone.dataset.questionId;
       const name = zone.dataset.zone;
@@ -357,6 +365,66 @@ document.addEventListener('DOMContentLoaded', () => {
       input.name = `q-${qid}[${name}]`;
       input.value = values;
       form.appendChild(input);
+    });
+    
+    // Debug information
+    const debugArea = document.getElementById('submission-debug');
+    debugArea.innerHTML = 'Attempting to submit form...';
+    debugArea.style.display = 'block';
+    
+    // Check for any invalid required fields
+    const invalidFields = this.querySelectorAll(':invalid');
+    if (invalidFields.length > 0) {
+      debugArea.innerHTML = `Form cannot be submitted. ${invalidFields.length} required fields are empty.`;
+      debugArea.className = 'alert alert-danger';
+      
+      // Highlight the first invalid field
+      invalidFields[0].focus();
+      invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    
+    debugArea.innerHTML = 'Form is valid, submitting...';
+    debugArea.className = 'alert alert-success';
+    
+    // Add submission timestamp
+    const timestamp = document.createElement('input');
+    timestamp.type = 'hidden';
+    timestamp.name = 'submission_time';
+    timestamp.value = new Date().toISOString();
+    form.appendChild(timestamp);
+    
+    // Submit the form using fetch API
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Form submitted successfully:', data);
+      // Show success message
+      debugArea.innerHTML = data.message || 'Form submitted successfully!';
+      debugArea.className = 'alert alert-success';
+      
+      // Disable submit button to prevent multiple submissions
+      document.querySelector('button[type="submit"]').disabled = true;
+      
+      // Optionally scroll to the success message
+      debugArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    })
+    .catch(error => {
+      console.error('Error submitting form:', error);
+      // Show error message
+      debugArea.innerHTML = 'Error submitting form. Please try again.';
+      debugArea.className = 'alert alert-danger';
     });
   });
   
