@@ -155,8 +155,31 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Routes
+
 @app.route('/')
 def index():
+    # Check if there are form_id and user_id query parameters
+    form_id = request.args.get('form_id')
+    user_id = request.args.get('user_id')
+    
+    # If both parameters exist, try to show the form
+    if form_id and user_id:
+        try:
+            form_id = int(form_id)
+            user_id = int(user_id)
+            
+            # Check if the form exists and belongs to the specified user
+            form = Form.query.filter_by(id=form_id, user_id=user_id).first()
+            
+            if form:
+                # If found, redirect to the form view
+                return redirect(url_for('view_form', form_id=form_id))
+            else:
+                flash('Form not found or invalid user ID')
+        except ValueError:
+            flash('Invalid form ID or user ID')
+    
+    # If no parameters or invalid form, show the regular index page
     return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -688,6 +711,32 @@ def update_form(form_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/form/<int:form_id>/share')
+@login_required
+def share_form(form_id):
+    form = Form.query.get_or_404(form_id)
+    if form.user_id != current_user.id:
+        flash('You do not have permission to share this form')
+        return redirect(url_for('dashboard'))
+    
+    # Generate the full shareable URL
+    # Getting the base URL with protocol (http/https)
+    if request.headers.get('X-Forwarded-Proto'):
+        proto = request.headers.get('X-Forwarded-Proto')
+    else:
+        proto = 'https' if request.is_secure else 'http'
+    
+    host = request.host
+    base_url = f"{proto}://{host}"
+    
+    # Create the share URL with both parameters
+    share_url = f"{base_url}/?form_id={form.id}&user_id={form.user_id}"
+    
+    # Print for debugging
+    print(f"Share URL: {share_url}")
+    
+    return render_template('share_form.html', form=form, share_url=share_url)
 
 @app.route('/upload_pdf', methods=['GET', 'POST'])
 @login_required
