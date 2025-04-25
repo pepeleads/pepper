@@ -1004,7 +1004,7 @@ def share_form(form_id):
     base_url = f"{proto}://{host}"
     
     # Use pepper-ads.com domain for production
-    production_url = "http://127.0.0.1:5000"
+    production_url = "http://pepper-ads.com"
     
     # Create the base share URL with form and user parameters
     base_share_url = f"{production_url}/?form_id={form.id}&user_id={form.user_id}"
