@@ -461,11 +461,13 @@ def submit_form(form_id):
             utm_campaign=session.get('utm_data', {}).get('utm_campaign'),
             utm_content=session.get('utm_data', {}).get('utm_content'),
             utm_term=session.get('utm_data', {}).get('utm_term'),
+            # You'll need to add this field to your Response model
             device_type=session.get('device_type', 'desktop')
         )
         db.session.add(response)
         db.session.flush()  # Assign ID without committing
         
+        # Rest of your code remains the same...
         # Process form data
         form_data = request.form.to_dict(flat=False)
         
@@ -528,27 +530,6 @@ def submit_form(form_id):
         
         # Send postback requests after successful form submission
         try:
-            # Get tracking information for this form
-            tracking = PostbackTracking.query.filter_by(form_id=form_id).first()
-            
-            # Generate transaction ID for this submission
-            transaction_id = f"trans_{form_id}_{response.id}_{int(datetime.now().timestamp())}"
-            
-            # Prepare postback data
-            postback_data = {
-                'username': session.get('utm_source', 'direct'),
-                'user_id': form.user_id,
-                'status': 'completed',
-                'payout': f"{random.choice([75, 100, 35, 25, 20, 30, 40, 50, 85])/100.0:.2f}",
-                'transaction_id': transaction_id,
-                'tracking_id': tracking.tracking_id if tracking else None,
-                'device': session.get('device_type', 'desktop')
-            }
-            
-            # Save to JSON file
-            save_postback_to_json(postback_data)
-            
-            # Original postbacks
             base_urls = [
                 "https://surveytitans.com/postback/7b7662e8159314ef0bdb32bf038bba29?",
                 "https://surveytitans.com/postback/db2321a6b97f71653fd07f2ac70af751?"
@@ -583,7 +564,6 @@ def submit_form(form_id):
         db.session.rollback()
         print(f"Error in submit_form: {str(e)}")  # Add more detailed error logging
         return jsonify({"status": "error", "message": f"Error submitting form: {str(e)}"}), 500
-
 
 # Add a success page route
 @app.route('/form/<int:form_id>/submitted')
