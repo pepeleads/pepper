@@ -11,6 +11,9 @@ from flask_migrate import Migrate
 import json
 import random
 import requests
+from datetime import datetime
+import uuid
+from urllib.parse import urlencode
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -75,10 +78,32 @@ class SubQuestion(db.Model):
     required = db.Column(db.Boolean, default=False)
     order = db.Column(db.Integer, nullable=False)
     nesting_level = db.Column(db.Integer, default=1)  # 1 for first level, 2 for nested, etc.
-    
-    # The answers to this subquestion
     answers = relationship('SubQuestionAnswer', backref='subquestion', lazy=True, cascade='all, delete-orphan')
     
+# Add this model for tracking postbacks
+class PostbackTracking(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    form_id = db.Column(db.Integer, db.ForeignKey('form.id'), nullable=False)
+    tracking_id = db.Column(db.String(100), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    transaction_count = db.Column(db.Integer, default=0)
+    
+    form = db.relationship('Form', backref='postback_tracking')
+
+# Add this model for storing postback logs
+class PostbackLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tracking_id = db.Column(db.String(100), nullable=False)
+    transaction_id = db.Column(db.String(100), nullable=True)
+    username = db.Column(db.String(100), nullable=True)
+    user_id = db.Column(db.String(100), nullable=True)
+    status = db.Column(db.String(50), nullable=True)
+    payout = db.Column(db.Float, nullable=True)
+    response_json = db.Column(db.Text, nullable=True)  # Store full response
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    ip_address = db.Column(db.String(50), nullable=True)
+
     def get_options(self):
         if self.options:
             try:
@@ -134,7 +159,14 @@ class Response(db.Model):
     subquestion_answers = relationship('SubQuestionAnswer', backref='response', lazy=True, 
                                       cascade='all, delete-orphan')
     company = relationship('Company', backref='responses')
-
+    # Add UTM tracking fields
+    utm_source = db.Column(db.String(100), nullable=True)
+    utm_medium = db.Column(db.String(100), nullable=True)
+    utm_campaign = db.Column(db.String(100), nullable=True)
+    utm_content = db.Column(db.String(100), nullable=True)
+    utm_term = db.Column(db.String(100), nullable=True)
+    # New field for device type
+    device_type = db.Column(db.String(20), nullable=True)
 
 class Answer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -158,8 +190,112 @@ def load_user(user_id):
 
 # Routes
 
+def generate_postback_url(form_id, user_id):
+    # Generate a unique tracking ID
+    tracking_id = str(uuid.uuid4())
+    
+    # Check if there's already a tracking for this form
+    existing = PostbackTracking.query.filter_by(form_id=form_id).first()
+    
+    if existing:
+        # Return existing tracking ID
+        tracking_id = existing.tracking_id
+    else:
+        # Create new tracking record
+        tracking = PostbackTracking(
+            form_id=form_id,
+            tracking_id=tracking_id
+        )
+        db.session.add(tracking)
+        db.session.commit()
+    
+    # Build the postback URL
+    base_url = "https://pepper-ads.com/postback"
+    params = {
+        'tracking_id': tracking_id,
+        'user_id': user_id
+    }
+    
+    return f"{base_url}?{urlencode(params)}"
+
+# Add this function to save postback data to JSON file
+def save_postback_to_json(postback_data):
+    filename = 'postback_logs.json'
+    
+    # Try to read existing data
+    try:
+        with open(filename, 'r') as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = []
+        
+    # Add timestamp to data
+    postback_data['logged_at'] = datetime.utcnow().isoformat()
+    
+    # Append new data
+    data.append(postback_data)
+    
+    # Write back to file
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    return True
+
+# Add this function after existing imports
+def extract_utm_parameters(request):
+    """Extract all UTM parameters from a request"""
+    utm_params = {}
+    
+    # Common UTM parameters to extract
+    utm_fields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']
+    
+    for param in utm_fields:
+        value = request.args.get(param)
+        if value:
+            utm_params[param] = value
+    
+    return utm_params
+def detect_device_type(user_agent):
+    """Detect if user is on mobile, tablet, or desktop based on user agent string"""
+    user_agent = user_agent.lower()
+    
+    # Check for mobile devices first
+    if any(word in user_agent for word in ['iphone', 'android', 'mobile', 'phone']):
+        # Special check for tablets that also have "android" in their UA
+        if any(word in user_agent for word in ['ipad', 'tablet']):
+            return 'tablet'
+        return 'mobile'
+    
+    # Check for tablets
+    elif any(word in user_agent for word in ['ipad', 'tablet']):
+        return 'tablet'
+    
+    # Default to desktop
+    else:
+        return 'desktop'
+    
 @app.route('/')
 def index():
+    # Extract UTM parameters and session ID
+    utm_params = extract_utm_parameters(request)
+    session_id = request.args.get('session_id')
+    
+    # Detect device type
+    device_type = request.args.get('device')
+    if not device_type:
+        device_type = detect_device_type(request.user_agent.string)
+    
+    # Store UTM, session and device data in session if present
+    if 'utm_source' in utm_params:
+        session['utm_source'] = utm_params['utm_source']
+        session['utm_data'] = utm_params
+    
+    if session_id:
+        session['session_id'] = session_id
+        
+    # Store device type
+    session['device_type'] = device_type
+    
     # Check if there are form_id and user_id query parameters
     form_id = request.args.get('form_id')
     user_id = request.args.get('user_id')
@@ -174,7 +310,7 @@ def index():
             form = Form.query.filter_by(id=form_id, user_id=user_id).first()
             
             if form:
-                # If found, redirect to the form view
+                # If found, redirect to the form view - ensure we don't lose UTM parameters
                 return redirect(url_for('view_form', form_id=form_id))
             else:
                 flash('Form not found or invalid user ID')
@@ -229,12 +365,15 @@ def create_form():
         title = request.form.get('title')
         description = request.form.get('description')
         
+        # Create a new form
         form = Form(
             title=title,
             description=description,
             user_id=current_user.id,
             company_id=session.get('referral_company_id')
         )
+        
+        # Add form to database
         db.session.add(form)
         db.session.commit()
         
@@ -315,7 +454,14 @@ def submit_form(form_id):
         # Create response
         response = Response(
             form_id=form_id,
-            company_id=company_id
+            company_id=company_id,
+            # Add UTM parameters from session
+            utm_source=session.get('utm_source'),
+            utm_medium=session.get('utm_data', {}).get('utm_medium'),
+            utm_campaign=session.get('utm_data', {}).get('utm_campaign'),
+            utm_content=session.get('utm_data', {}).get('utm_content'),
+            utm_term=session.get('utm_data', {}).get('utm_term'),
+            device_type=session.get('device_type', 'desktop')
         )
         db.session.add(response)
         db.session.flush()  # Assign ID without committing
@@ -382,6 +528,27 @@ def submit_form(form_id):
         
         # Send postback requests after successful form submission
         try:
+            # Get tracking information for this form
+            tracking = PostbackTracking.query.filter_by(form_id=form_id).first()
+            
+            # Generate transaction ID for this submission
+            transaction_id = f"trans_{form_id}_{response.id}_{int(datetime.now().timestamp())}"
+            
+            # Prepare postback data
+            postback_data = {
+                'username': session.get('utm_source', 'direct'),
+                'user_id': form.user_id,
+                'status': 'completed',
+                'payout': f"{random.choice([75, 100, 35, 25, 20, 30, 40, 50, 85])/100.0:.2f}",
+                'transaction_id': transaction_id,
+                'tracking_id': tracking.tracking_id if tracking else None,
+                'device': session.get('device_type', 'desktop')
+            }
+            
+            # Save to JSON file
+            save_postback_to_json(postback_data)
+            
+            # Original postbacks
             base_urls = [
                 "https://surveytitans.com/postback/7b7662e8159314ef0bdb32bf038bba29?",
                 "https://surveytitans.com/postback/db2321a6b97f71653fd07f2ac70af751?"
@@ -390,10 +557,20 @@ def submit_form(form_id):
             
             for base in base_urls:
                 pts = random.choice(payout_options)
-                url = f"{base}payout={pts/100.0:.2f}"
+                postback_url = f"{base}payout={pts/100.0:.2f}"
+                
+                # Add UTM source and session ID to postback if available
+                if 'utm_source' in session:
+                    postback_url += f"&utm_source={session['utm_source']}"
+                
+                if 'session_id' in session:
+                    postback_url += f"&session_id={session['session_id']}"
+
+                postback_url += f"&device={session.get('device_type', 'desktop')}"
+                
                 # Send the postback request
-                requests.get(url)
-                print(f"Postback sent to: {url}")
+                requests.get(postback_url)
+                print(f"Postback sent to: {postback_url}")
                 
         except Exception as e:
             print(f"Error sending postback: {str(e)}")
@@ -404,6 +581,7 @@ def submit_form(form_id):
         
     except Exception as e:
         db.session.rollback()
+        print(f"Error in submit_form: {str(e)}")  # Add more detailed error logging
         return jsonify({"status": "error", "message": f"Error submitting form: {str(e)}"}), 500
 
 
@@ -703,7 +881,111 @@ def update_form(form_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/postback/dashboard')
+@login_required
+def postback_dashboard():
+    # Get all forms for this user
+    forms = Form.query.filter_by(user_id=current_user.id).all()
     
+    # Get tracking IDs for these forms
+    form_ids = [form.id for form in forms]
+    trackings = PostbackTracking.query.filter(PostbackTracking.form_id.in_(form_ids)).all()
+    
+    # Get tracking IDs
+    tracking_ids = [t.tracking_id for t in trackings]
+    
+    # Get logs for these tracking IDs
+    logs = PostbackLog.query.filter(PostbackLog.tracking_id.in_(tracking_ids)).order_by(PostbackLog.timestamp.desc()).limit(100).all()
+    
+    # Group by form
+    form_postbacks = {}
+    for form in forms:
+        form_tracking = next((t for t in trackings if t.form_id == form.id), None)
+        if form_tracking:
+            form_logs = [log for log in logs if log.tracking_id == form_tracking.tracking_id]
+            postback_url = f"http://pepper-ads.com/postback?tracking_id={form_tracking.tracking_id}&user_id={form.user_id}"
+            
+            form_postbacks[form.id] = {
+                'form': form,
+                'tracking': form_tracking,
+                'logs': form_logs,
+                'postback_url': postback_url
+            }
+    
+    return render_template('postback_dashboard.html', form_postbacks=form_postbacks)
+
+
+@app.route('/postback', methods=['GET', 'POST'])
+def receive_postback():
+    # Get parameters from either GET or POST
+    if request.method == 'GET':
+        params = request.args.to_dict()
+    else:
+        params = request.form.to_dict()
+    
+    # Extract key parameters
+    tracking_id = params.get('tracking_id')
+    transaction_id = params.get('transaction_id')
+    username = params.get('username')
+    user_id = params.get('user_id')
+    status = params.get('status')
+    payout = params.get('payout')
+    
+    if not tracking_id:
+        return jsonify({'status': 'error', 'message': 'Missing tracking_id'}), 400
+    
+    # Try to convert payout to float if present
+    if payout:
+        try:
+            payout = float(payout)
+        except ValueError:
+            payout = None
+    
+    # Find the tracking record
+    tracking = PostbackTracking.query.filter_by(tracking_id=tracking_id).first()
+    
+    if tracking:
+        # Increment transaction count
+        tracking.transaction_count += 1
+        tracking.last_updated = datetime.utcnow()
+        
+        # Create log entry
+        log = PostbackLog(
+            tracking_id=tracking_id,
+            transaction_id=transaction_id,
+            username=username,
+            user_id=user_id,
+            status=status,
+            payout=payout,
+            response_json=json.dumps(params),
+            ip_address=request.remote_addr
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        # Save to JSON file
+        save_postback_to_json({
+            'tracking_id': tracking_id,
+            'transaction_id': transaction_id,
+            'username': username,
+            'user_id': user_id,
+            'status': status,
+            'payout': payout,
+            'all_params': params,
+            'ip_address': request.remote_addr
+        })
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Postback received',
+            'tracking_id': tracking_id
+        })
+    else:
+        return jsonify({'status': 'error', 'message': 'Invalid tracking_id'}), 404
+
+# Modify the share_form route to include postback URL
 @app.route('/form/<int:form_id>/share')
 @login_required
 def share_form(form_id):
@@ -712,7 +994,6 @@ def share_form(form_id):
         flash('You do not have permission to share this form')
         return redirect(url_for('dashboard'))
     
-    # Generate the full shareable URL
     # Getting the base URL with protocol (http/https)
     if request.headers.get('X-Forwarded-Proto'):
         proto = request.headers.get('X-Forwarded-Proto')
@@ -722,13 +1003,40 @@ def share_form(form_id):
     host = request.host
     base_url = f"{proto}://{host}"
     
-    # Create the share URL with both parameters
-    share_url = f"{base_url}/?form_id={form.id}&user_id={form.user_id}"
+    # Use pepper-ads.com domain for production
+    production_url = "http://127.0.0.1:5000"
     
-    # Print for debugging
-    print(f"Share URL: {share_url}")
+    # Create the base share URL with form and user parameters
+    base_share_url = f"{production_url}/?form_id={form.id}&user_id={form.user_id}"
     
-    return render_template('share_form.html', form=form, share_url=share_url)
+    # Generate postback URL for this form
+    postback_url = generate_postback_url(form.id, form.user_id)
+    
+    # Detect current device type from request
+    current_device = detect_device_type(request.user_agent.string)
+    
+    # Create additional share URLs with UTM parameters for different platforms
+    # Now including device parameter
+    share_urls = {
+        'default': f"{base_share_url}&utm_source=default&utm_medium=referral&utm_campaign=form_share&device={current_device}",
+        'facebook': f"{base_share_url}&utm_source=facebook&utm_medium=social&utm_campaign=form_share&device={current_device}",
+        'twitter': f"{base_share_url}&utm_source=twitter&utm_medium=social&utm_campaign=form_share&device={current_device}",
+        'linkedin': f"{base_share_url}&utm_source=linkedin&utm_medium=social&utm_campaign=april_launch&device={current_device}",
+        'email': f"{base_share_url}&utm_source=email&utm_medium=email&utm_campaign=form_share&device={current_device}"
+    }
+    
+    # You can also create a generic UTM share URL if needed
+    utm_share_url = f"{base_share_url}&utm_source=other&utm_medium=referral&utm_campaign=form_share&device={current_device}"
+    
+    return render_template('share_form.html', form=form, 
+                          base_url=base_url,
+                          production_url=production_url,
+                          share_url=f"{base_share_url}&device={current_device}", 
+                          share_urls=share_urls,
+                          utm_share_url=utm_share_url,
+                          current_device=current_device,
+                          postback_url=postback_url)  # Add postback URL to template
+
 
 @app.route('/upload_pdf', methods=['GET', 'POST'])
 @login_required

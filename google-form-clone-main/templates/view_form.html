@@ -433,5 +433,85 @@ document.addEventListener('DOMContentLoaded', () => {
     card.style.setProperty('--animation-order', index);
   });
 });
+// This should be included in your view_form.html template or as a separate JS file
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('formSubmission');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading indicator
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+        
+        // Get form data
+        const formData = new FormData(form);
+        
+        // Get session ID from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        
+        // Add session ID to form data if present
+        if (sessionId) {
+            formData.append('session_id', sessionId);
+        }
+        
+        // Submit form via AJAX
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Show success message
+                document.getElementById('formContainer').innerHTML = `
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">Thank you!</h4>
+                        <p>${data.message || 'Your form has been submitted successfully.'}</p>
+                    </div>
+                    <div class="text-center mt-4">
+                        <a href="/" class="btn btn-primary">Back to Home</a>
+                    </div>
+                `;
+                
+                // Scroll to top
+                window.scrollTo(0, 0);
+            } else {
+                // Show error message
+                const errorDiv = document.getElementById('formErrors') || document.createElement('div');
+                errorDiv.id = 'formErrors';
+                errorDiv.className = 'alert alert-danger mt-3';
+                errorDiv.innerHTML = `<strong>Error:</strong> ${data.message || 'There was a problem submitting your form. Please try again.'}`;
+                form.prepend(errorDiv);
+                
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Show error message
+            const errorDiv = document.getElementById('formErrors') || document.createElement('div');
+            errorDiv.id = 'formErrors';
+            errorDiv.className = 'alert alert-danger mt-3';
+            errorDiv.innerHTML = '<strong>Error:</strong> There was a problem connecting to the server. Please try again later.';
+            form.prepend(errorDiv);
+            
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        });
+    });
+});
 </script>
 {% endblock %}

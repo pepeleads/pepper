@@ -1,90 +1,298 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Share Form: {{ form.title }}</h3>
+    <h1><i class="fas fa-share-alt text-primary"></i> Share Your Form</h1>
+    
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i> Your form "<strong>{{ form.title }}</strong>" is ready to be shared!
+    </div>
+    
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-link"></i> Share Links</h5>
+        </div>
+        <div class="card-body">
+            <p><i class="fas fa-info-circle text-primary"></i> Use these links to share your form with others:</p>
+            
+            <div class="form-group mb-4">
+                <label for="direct-link"><strong>Direct Link:</strong></label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                    </div>
+                    <input type="text" id="direct-link" class="form-control" readonly>
+                    <div class="input-group-append">
+                        <button class="btn btn-primary copy-btn" data-clipboard-target="#direct-link">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <p>You can share this form using the link below:</p>
-                    
-                    <div class="input-group mb-3">
-                        <input type="text" id="shareUrl" class="form-control" value="{{ share_url }}" readonly>
-                        <div class="input-group-append">
-                            <button class="btn btn-outline-primary" type="button" onclick="copyToClipboard()">Copy Link</button>
+                <small class="text-muted"><i class="fas fa-info-circle"></i> Share this link directly with your audience.</small>
+            </div>
+            
+            <h5 class="mt-4 mb-3"><i class="fas fa-share-alt"></i> Share on Social Media</h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm hover-card">
+                        <div class="card-body text-center">
+                            <h5><i class="fab fa-facebook fa-2x text-primary mb-3"></i><br>Facebook</h5>
+                            <input type="text" id="facebook-link" class="form-control mb-2" readonly>
+                            <div class="btn-group d-flex">
+                                <button class="btn btn-outline-primary copy-btn" data-clipboard-target="#facebook-link">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <a id="facebook-share" href="#" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-share"></i> Share
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div id="copySuccess" class="alert alert-success" style="display: none;">
-                        Link copied to clipboard!
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm hover-card">
+                        <div class="card-body text-center">
+                            <h5><i class="fab fa-twitter fa-2x text-info mb-3"></i><br>Twitter</h5>
+                            <input type="text" id="twitter-link" class="form-control mb-2" readonly>
+                            <div class="btn-group d-flex">
+                                <button class="btn btn-outline-info copy-btn" data-clipboard-target="#twitter-link">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <a id="twitter-share" href="#" target="_blank" class="btn btn-info">
+                                    <i class="fas fa-share"></i> Share
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="mt-4">
-                        <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-secondary">Back to Edit Form</a>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-info">Back to Dashboard</a>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm hover-card">
+                        <div class="card-body text-center">
+                            <h5><i class="fab fa-linkedin fa-2x text-primary mb-3"></i><br>LinkedIn</h5>
+                            <input type="text" id="linkedin-link" class="form-control mb-2" readonly>
+                            <div class="btn-group d-flex">
+                                <button class="btn btn-outline-primary copy-btn" data-clipboard-target="#linkedin-link">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <a id="linkedin-share" href="#" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-share"></i> Share
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            
+            <div class="form-group mt-4">
+                <label for="email-link"><strong><i class="fas fa-envelope"></i> Email Campaign Link:</strong></label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                    </div>
+                    <input type="text" id="email-link" class="form-control" readonly>
+                    <div class="input-group-append">
+                        <button class="btn btn-primary copy-btn" data-clipboard-target="#email-link">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                <small class="text-muted"><i class="fas fa-info-circle"></i> Use this link for email campaigns.</small>
+            </div>
         </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+          <h4>Postback URL</h4>
+        </div>
+        <div class="card-body">
+          <p>Use this URL to receive form submission data on external sites:</p>
+          <div class="input-group mb-3">
+            <input type="text" class="form-control" id="postbackUrl" value="{{ postback_url }}" readonly>
+            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('postbackUrl')">Copy</button>
+          </div>
+          <p class="mt-3 mb-0"><small class="text-muted">
+            This URL accepts the following parameters: username, user_id, status, payout, and transaction_id
+          </small></p>
+        </div>
+      </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
 </div>
 
+<style>
+.hover-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+.btn-group.d-flex .btn {
+    flex: 1;
+}
+.copy-btn {
+    position: relative;
+}
+.card {
+    border-radius: 8px;
+    overflow: hidden;
+}
+.card-header {
+    font-weight: 500;
+}
+.alert-success {
+    border-left: 5px solid #28a745;
+}
+</style>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
 <script>
-function copyToClipboard() {
-    // Get the input field
-    var copyText = document.getElementById("shareUrl");
+document.addEventListener('DOMContentLoaded', function() {
+    // Generate a random session ID
+    const sessionId = Math.random().toString(36).substring(2);
     
-    // Select the text
-    copyText.select();
+    // Get base URLs from the template
+    const baseShareUrl = "{{ share_url }}";
     
-    try {
-        // For modern browsers
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(copyText.value)
-                .then(function() {
-                    showSuccess();
-                })
-                .catch(function() {
-                    // Fallback for older browsers
-                    legacyCopy(copyText);
-                });
+    // Function to add session ID to a URL and ensure & is not encoded
+    function addSessionId(url) {
+        // Create a proper URL without HTML entity encoding
+        let cleanUrl = url.replace(/&amp;/g, '&');
+        return cleanUrl + (cleanUrl.includes('?') ? '&' : '?') + 'session_id=' + sessionId;
+    }
+    
+    // Update all share links with session ID
+    document.getElementById('direct-link').value = addSessionId(baseShareUrl);
+    document.getElementById('facebook-link').value = addSessionId("{{ share_urls['facebook'] }}".replace(/&amp;/g, '&'));
+    document.getElementById('twitter-link').value = addSessionId("{{ share_urls['twitter'] }}".replace(/&amp;/g, '&'));
+    document.getElementById('linkedin-link').value = addSessionId("{{ share_urls['linkedin'] }}".replace(/&amp;/g, '&'));
+    document.getElementById('email-link').value = addSessionId("{{ share_urls['email'] }}".replace(/&amp;/g, '&'));
+    
+    // Update social share buttons with the correct links
+    const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(document.getElementById('facebook-link').value)}`;
+    document.getElementById('facebook-share').href = facebookShareUrl;
+    
+    const twitterText = `Check out this form: ${encodeURIComponent(document.getElementById('twitter-link').value)}`;
+    document.getElementById('twitter-share').href = `https://twitter.com/intent/tweet?text=${twitterText}`;
+    
+    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(document.getElementById('linkedin-link').value)}`;
+    document.getElementById('linkedin-share').href = linkedinUrl;
+    
+    // Initialize clipboard.js
+    const clipboard = new ClipboardJS('.copy-btn');
+    
+    // Add copy success notification
+    clipboard.on('success', function(e) {
+        const originalText = e.trigger.innerHTML;
+        e.trigger.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        
+        // Create ripple effect
+        const ripple = document.createElement('span');
+        ripple.classList.add('copy-ripple');
+        e.trigger.appendChild(ripple);
+        
+        setTimeout(() => {
+            e.trigger.innerHTML = originalText;
+            if (ripple) ripple.remove();
+        }, 2000);
+        
+        e.clearSelection();
+    });
+    
+    // Show tooltip on hover
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.setAttribute('title', 'Copy to clipboard');
+    });
+});
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to detect device type
+    function detectDeviceType() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        
+        if (/android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent)) {
+            return 'mobile';
+        } else if (/ipad|tablet|playbook|silk|android(?!.*mobile)/i.test(userAgent)) {
+            return 'tablet';
         } else {
-            // Fallback for older browsers
-            legacyCopy(copyText);
+            return 'desktop';
         }
-    } catch (err) {
-        console.error('Failed to copy: ', err);
-        alert('Failed to copy the link. Please select it manually and copy.');
     }
-}
-
-function legacyCopy(element) {
-    // Make sure it's selectable
-    element.removeAttribute("readonly");
-    element.select();
     
-    // Execute copy command
-    var successful = document.execCommand('copy');
+    // Get device type
+    const deviceType = detectDeviceType();
     
-    // Restore readonly attribute
-    element.setAttribute("readonly", true);
-    
-    if (successful) {
-        showSuccess();
-    } else {
-        alert('Failed to copy the link. Please select it manually and copy.');
+    // Generate a random session ID if not already present
+    let sessionId = localStorage.getItem('formSessionId');
+    if (!sessionId) {
+        sessionId = Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('formSessionId', sessionId);
     }
-}
-
-function showSuccess() {
-    var copySuccess = document.getElementById("copySuccess");
-    copySuccess.style.display = "block";
     
-    setTimeout(function() {
-        copySuccess.style.display = "none";
-    }, 3000);
+    // Update all share links with session ID and device type
+    const shareLinks = document.querySelectorAll('.share-link');
+    shareLinks.forEach(link => {
+        let href = link.getAttribute('href');
+        
+        // Add session ID
+        href += (href.includes('?') ? '&' : '?') + 'session_id=' + sessionId;
+        
+        // Add device type
+        href += '&device=' + deviceType;
+        
+        link.setAttribute('href', href);
+    });
+    
+    // Also update any copy-to-clipboard functionality
+    const shareUrlInput = document.getElementById('shareUrlInput');
+    if (shareUrlInput) {
+        let url = shareUrlInput.value;
+        url += (url.includes('?') ? '&' : '?') + 'session_id=' + sessionId;
+        url += '&device=' + deviceType;
+        shareUrlInput.value = url;
+    }
+});
+function copyToClipboard(elementId) {
+  var copyText = document.getElementById(elementId);
+  copyText.select();
+  document.execCommand("copy");
+  
+  // Show feedback
+  var btn = event.target;
+  var originalText = btn.innerText;
+  btn.innerText = "Copied!";
+  setTimeout(function() {
+    btn.innerText = originalText;
+  }, 2000);
 }
 </script>
+<style>
+.copy-ripple {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        width: 200px;
+        height: 200px;
+        opacity: 0;
+    }
+}
+</style>
+{% endblock %}
 {% endblock %}
