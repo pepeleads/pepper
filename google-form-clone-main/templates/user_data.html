@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}User Data for Response{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_responses', form_id=form.id) }}">{{ form.title }} Responses</a></li>
+            <li class="breadcrumb-item active">User Data</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Third-Party User Data</h5>
+            <span class="badge {% if third_party_data.status == 'completed' %}bg-success{% elif third_party_data.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                {{ third_party_data.status|title }}
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <p><strong>Source:</strong> {{ third_party_data.external_site }}</p>
+                    <p><strong>User Identifier:</strong> {{ third_party_data.user_identifier }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Request Sent:</strong> {{ third_party_data.request_sent_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    {% if third_party_data.response_received_at %}
+                    <p><strong>Response Received:</strong> {{ third_party_data.response_received_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if third_party_data.status == 'pending' %}
+                <div class="alert alert-warning">
+                    <p>Data request is still pending. This may take a few moments.</p>
+                    <button class="btn btn-sm btn-outline-primary" id="refreshBtn">Refresh</button>
+                </div>
+            {% elif third_party_data.status == 'failed' %}
+                <div class="alert alert-danger">
+                    <p>Failed to retrieve data from the third-party site.</p>
+                    <p><strong>Error:</strong> {{ third_party_data.get_data().error }}</p>
+                    <button class="btn btn-sm btn-outline-primary" id="retryBtn">Retry</button>
+                </div>
+            {% else %}
+                <div class="user-data-container">
+                    {% set data = third_party_data.get_data() %}
+                    <h6>User Information</h6>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered">
+                            <tbody>
+                                {% if data.name %}
+                                <tr>
+                                    <th style="width: 200px;">Name</th>
+                                    <td>{{ data.name }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if data.email %}
+                                <tr>
+                                    <th>Email</th>
+                                    <td>{{ data.email }}</td>
+                                </tr>
+                                {% endif %}
+                                
+                                {% if data.profile %}
+                                {% for key, value in data.profile.items() %}
+                                <tr>
+                                    <th>{{ key|title }}</th>
+                                    <td>{{ value }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if data.activity %}
+                    <h6>User Activity</h6>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered">
+                            <tbody>
+                                {% for key, value in data.activity.items() %}
+                                <tr>
+                                    <th style="width: 200px;">{{ key|replace('_', ' ')|title }}</th>
+                                    {% if value is string %}
+                                    <td>{{ value }}</td>
+                                    {% elif value is iterable and value is not mapping %}
+                                    <td>
+                                        <ul class="mb-0">
+                                            {% for item in value %}
+                                                {% if item is mapping %}
+                                                    <li>
+                                                        {% for k, v in item.items() %}
+                                                            <strong>{{ k|replace('_', ' ')|title }}:</strong> {{ v }}
+                                                            {% if not loop.last %} | {% endif %}
+                                                        {% endfor %}
+                                                    </li>
+                                                {% else %}
+                                                    <li>{{ item }}</li>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    {% else %}
+                                    <td>{{ value }}</td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {% if data.purchases %}
+                    <h6>Purchase History</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Total</th>
+                                    <th>Items</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for purchase in data.purchases %}
+                                <tr>
+                                    <td>{{ purchase.order_id }}</td>
+                                    <td>{{ purchase.date }}</td>
+                                    <td>${{ purchase.total }}</td>
+                                    <td>
+                                        {% if purchase.items %}
+                                        <ul class="mb-0">
+                                            {% for item in purchase.items %}
+                                            <li>{{ item.name }} ({{ item.quantity }}x ${{ item.price }})</li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {% if data.form_submissions %}
+                    <h6>Form Submissions</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Form ID</th>
+                                    <th>Submission Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for submission in data.form_submissions %}
+                                <tr>
+                                    <td>{{ submission.form_id }}</td>
+                                    <td>{{ submission.submitted_at }}</td>
+                                    <td>
+                                        {% if submission.completed %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Incomplete</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Raw data for debugging -->
+                    <div class="mt-4">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#rawData">
+                            View Raw Data
+                        </button>
+                        <div class="collapse mt-2" id="rawData">
+                            <div class="card card-body">
+                                <pre class="mb-0">{{ third_party_data.data|tojson(indent=2) }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <a href="{{ url_for('view_responses', form_id=form.id) }}" class="btn btn-secondary">Back to Responses</a>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                window.location.reload();
+            });
+        }
+        
+        // Handle retry button
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', function() {
+                // Send an AJAX request to retry fetching the data
+                // For now just reload the page
+                window.location.reload();
+            });
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %} 

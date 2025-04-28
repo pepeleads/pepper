@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Score Testing System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #activeCycles, #results {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Credit Score Testing System</h1>
+        
+        <div class="card">
+            <h2>Start New Test</h2>
+            <p>Enter an offer ID or leave blank to generate automatically.</p>
+            <div>
+                <input type="text" id="offerIdInput" placeholder="Offer ID (optional)">
+                <button id="startTestBtn">Start Test Cycle</button>
+                <span id="startLoading" class="loading"></span>
+            </div>
+            <p><small>Note: Each test cycle runs for approximately 200 minutes (10 responses, 20 minutes apart)</small></p>
+        </div>
+        
+        <div class="card">
+            <h2>Active Test Cycles</h2>
+            <button id="refreshActiveBtn">Refresh</button>
+            <span id="activeLoading" class="loading"></span>
+            <div id="activeCycles">
+                <p>No active test cycles.</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>View Test Results</h2>
+            <div>
+                <input type="text" id="testCycleIdInput" placeholder="Test Cycle ID">
+                <button id="getResultsBtn">Get Results</button>
+                <span id="resultsLoading" class="loading"></span>
+            </div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Start test
+        document.getElementById('startTestBtn').addEventListener('click', function() {
+            const startLoading = document.getElementById('startLoading');
+            startLoading.textContent = 'Starting...';
+            
+            const offerId = document.getElementById('offerIdInput').value.trim();
+            
+            fetch('/api/start-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ offer_id: offerId }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                startLoading.textContent = '';
+                alert(`Test started successfully! Test Cycle ID: ${data.test_cycle_id}`);
+                refreshActiveCycles();
+            })
+            .catch(error => {
+                startLoading.textContent = '';
+                alert('Error starting test: ' + error);
+            });
+        });
+        
+        // Refresh active tests
+        function refreshActiveCycles() {
+            const activeLoading = document.getElementById('activeLoading');
+            activeLoading.textContent = 'Loading...';
+            
+            fetch('/api/active-tests')
+                .then(response => response.json())
+                .then(data => {
+                    activeLoading.textContent = '';
+                    const activeContainer = document.getElementById('activeCycles');
+                    
+                    if (data.active_tests.length === 0) {
+                        activeContainer.innerHTML = '<p>No active test cycles.</p>';
+                        return;
+                    }
+                    
+                    let html = `
+                        <table>
+                            <tr>
+                                <th>Test Cycle ID</th>
+                                <th>Offer ID</th>
+                                <th>Start Time</th>
+                                <th>Actions</th>
+                            </tr>
+                    `;
+                    
+                    data.active_tests.forEach(test => {
+                        html += `
+                            <tr>
+                                <td>${test.test_cycle_id}</td>
+                                <td>${test.offer_id}</td>
+                                <td>${new Date(test.start_time).toLocaleString()}</td>
+                                <td>
+                                    <button onclick="cancelTest('${test.test_cycle_id}')">Cancel</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</table>';
+                    activeContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    activeLoading.textContent = '';
+                    console.error('Error fetching active tests:', error);
+                });
+        }
+        
+        // Cancel test
+        function cancelTest(testCycleId) {
+            if (confirm(`Are you sure you want to cancel test cycle ${testCycleId}?`)) {
+                fetch(`/api/cancel-test/${testCycleId}`, {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    refreshActiveCycles();
+                })
+                .catch(error => {
+                    alert('Error canceling test: ' + error);
+                });
+            }
+        }
+        
+        // Get test results
+        document.getElementById('getResultsBtn').addEventListener('click', function() {
+            const resultsLoading = document.getElementById('resultsLoading');
+            resultsLoading.textContent = 'Loading...';
+            
+            const testCycleId = document.getElementById('testCycleIdInput').value.trim();
+            if (!testCycleId) {
+                alert('Please enter a Test Cycle ID');
+                resultsLoading.textContent = '';
+                return;
+            }
+            
+            fetch(`/api/test-results/${testCycleId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Results not found');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultsLoading.textContent = '';
+                    const resultsContainer = document.getElementById('results');
+                    
+                    let html = `
+                        <h3>Results for Test Cycle: ${data.test_cycle_id}</h3>
+                        <p>Offer ID: ${data.offer_id}</p>
+                        <p>Total Responses: ${data.total_responses}</p>
+                        <table>
+                            <tr>
+                                <th>#</th>
+                                <th>Timestamp</th>
+                                <th>Credit Score</th>
+                                <th>Risk Level</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                    `;
+                    
+                    data.results.forEach(response => {
+                        html += `
+                            <tr>
+                                <td>${response.response_number}</td>
+                                <td>${new Date(response.timestamp).toLocaleString()}</td>
+                                <td>${response.data.credit_score}</td>
+                                <td>${response.data.risk_level}</td>
+                                <td>${response.data.approval_status}</td>
+                                <td><button onclick="showDetails('${JSON.stringify(response.data).replace(/"/g, '&quot;')}')">View</button></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</table>';
+                    resultsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    resultsLoading.textContent = '';
+                    document.getElementById('results').innerHTML = `<p>Error: ${error.message}</p>`;
+                });
+        });
+        
+        // Show response details
+        function showDetails(jsonData) {
+            const data = JSON.parse(jsonData);
+            const details = `
+                Offer ID: ${data.offer_id}
+                Timestamp: ${data.timestamp}
+                Credit Score: ${data.credit_score}
+                Risk Level: ${data.risk_level}
+                Contributing Factors: ${data.contributing_factors.join(', ')}
+                Approval Status: ${data.approval_status}
+                Recommended Products: ${data.recommended_products}
+            `;
+            alert(details);
+        }
+        
+        // Initialize
+        document.getElementById('refreshActiveBtn').addEventListener('click', refreshActiveCycles);
+        refreshActiveCycles();
+    </script>
+</body>
+</html>

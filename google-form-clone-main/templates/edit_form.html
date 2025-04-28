@@ -1,0 +1,703 @@
+{% extends "base.html" %} 
+{% block title %}Edit Form - Google Forms Clone{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 col-lg-12 col-xl-12 mx-auto">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>{{ form.title }}</h3>
+                <p class="text-muted mb-0">{{ form.description or 'No description' }}</p>
+            </div>
+            <div class="card-body">
+                <div id="questions-container">
+                    {% for question in form.questions %}
+                    <div class="question-card card mb-3" data-question-id="{{ question.id }}">
+                        <div class="card-body">
+                            <!-- Question text input -->
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <input type="text" class="form-control form-control-lg question-text" 
+                                       value="{{ question.question_text }}" 
+                                       placeholder="Question text" 
+                                       aria-label="Question text">
+                                <button class="btn btn-outline-danger ms-2 delete-question" 
+                                        title="Delete question">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Delete question</span>
+                                </button>
+                            </div>
+
+                            <!-- Select question type -->
+                            <div class="mb-3">
+                                <select class="form-select question-type" aria-label="Question type">
+                                    <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Text</option>
+                                    <option value="password" {% if question.question_type == 'password' %}selected{% endif %}>Password</option>
+                                    <option value="email" {% if question.question_type == 'email' %}selected{% endif %}>Email</option>
+                                    <option value="number" {% if question.question_type == 'number' %}selected{% endif %}>Number</option>
+                                    <option value="tel" {% if question.question_type == 'tel' %}selected{% endif %}>Telephone</option>
+                                    <option value="url" {% if question.question_type == 'url' %}selected{% endif %}>URL</option>
+                                    <option value="search" {% if question.question_type == 'search' %}selected{% endif %}>Search</option>
+                                    <option value="date" {% if question.question_type == 'date' %}selected{% endif %}>Date</option>
+                                    <option value="datetime-local" {% if question.question_type == 'datetime-local' %}selected{% endif %}>Datetime</option>
+                                    <option value="month" {% if question.question_type == 'month' %}selected{% endif %}>Month</option>
+                                    <option value="week" {% if question.question_type == 'week' %}selected{% endif %}>Week</option>
+                                    <option value="time" {% if question.question_type == 'time' %}selected{% endif %}>Time</option>
+                                    <option value="color" {% if question.question_type == 'color' %}selected{% endif %}>Color</option>
+                                    <option value="file" {% if question.question_type == 'file' %}selected{% endif %}>File</option>
+                                    <option value="checkbox" {% if question.question_type == 'checkbox' %}selected{% endif %}>Checkbox</option>
+                                    <option value="radio" {% if question.question_type in ['radio','multiple_choice'] %}selected{% endif %}>Radio/Multiple Choice</option>
+                                    <option value="range" {% if question.question_type == 'range' %}selected{% endif %}>Range</option>
+                                    <option value="hidden" {% if question.question_type == 'hidden' %}selected{% endif %}>Hidden</option>
+                                    <option value="image" {% if question.question_type == 'image' %}selected{% endif %}>Image</option>
+                                    <option value="scale" {% if question.question_type == 'scale' %}selected{% endif %}>Scale (Likert)</option>
+                                    <option value="matrix" {% if question.question_type == 'matrix' %}selected{% endif %}>Matrix</option>
+                                </select>
+                            </div>
+
+                            <!-- Updated Options container with sub-questions -->
+                            <div class="options-container mb-3">
+                                {% if question.question_type in ['radio','multiple_choice'] %}
+                                    {% set opts = question.options|fromjson if question.options else [] %}
+                                    {% for opt in opts %}
+                                    <div class="option-group mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <input type="text" class="form-control option-text me-2"
+                                                   value="{{ opt.text }}" 
+                                                   placeholder="Option text">
+                                            <button class="btn btn-outline-danger delete-option me-2">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary add-subquestion">
+                                                Add Sub-question
+                                            </button>
+                                        </div>
+                                        <div class="subquestions-container ps-4 mt-2">
+                                            {% if opt.subquestions %}
+                                                {% for sub in opt.subquestions %}
+                                                <div class="subquestion-card card mb-2">
+                                                    <div class="card-body">
+                                                        <div class="d-flex align-items-center mb-2">
+                                                            <input type="text" class="form-control subquestion-text me-2"
+                                                                   value="{{ sub.text }}" 
+                                                                   placeholder="Sub-question text">
+                                                            <select class="form-select subquestion-type me-2" 
+                                                                    style="max-width: 150px;">
+                                                                {% for type in ['text', 'number', 'email', 'date', 'radio', 'checkbox', 'file', 'password'] %}
+                                                                <option value="{{ type }}" 
+                                                                        {% if sub.type == type %}selected{% endif %}>
+                                                                    {{ type|title }}
+                                                                </option>
+                                                                {% endfor %}
+                                                            </select>
+                                                            <button class="btn btn-outline-danger delete-subquestion">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        <div class="subquestion-response mt-2">
+                                                            {% if sub.type in ['radio', 'checkbox'] and sub.options %}
+                                                                {% for option in sub.options %}
+                                                                <div class="response-option-group">
+                                                                    <div class="response-option input-group mb-1">
+                                                                        <input type="text" class="form-control" value="{{ option.text }}" placeholder="Option text">
+                                                                        <button class="btn btn-outline-danger delete-response-option">
+                                                                            <i class="bi bi-x"></i>
+                                                                        </button>
+                                                                        <button class="btn btn-outline-secondary add-nested-subquestion">
+                                                                            <i class="bi bi-plus-circle"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="nested-subquestions-container ps-4 mt-1">
+                                                                        {% if option.subquestions %}
+                                                                            {% for nested_sub in option.subquestions %}
+                                                                            <div class="nested-subquestion-card card mb-2">
+                                                                                <div class="card-body">
+                                                                                    <div class="d-flex align-items-center mb-2">
+                                                                                        <input type="text" class="form-control nested-subquestion-text me-2"
+                                                                                               value="{{ nested_sub.text }}" 
+                                                                                               placeholder="Nested question text">
+                                                                                        <select class="form-select nested-subquestion-type me-2" 
+                                                                                                style="max-width: 130px;">
+                                                                                            {% for type in ['text', 'number', 'email', 'date', 'radio', 'checkbox', 'file', 'password'] %}
+                                                                                            <option value="{{ type }}" 
+                                                                                                    {% if nested_sub.type == type %}selected{% endif %}>
+                                                                                                {{ type|title }}
+                                                                                            </option>
+                                                                                            {% endfor %}
+                                                                                        </select>
+                                                                                        <button class="btn btn-outline-danger delete-nested-subquestion">
+                                                                                            <i class="bi bi-x"></i>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <div class="nested-subquestion-response mt-2">
+                                                                                        <!-- Nested response options would render here -->
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            {% endfor %}
+                                                                        {% endif %}
+                                                                    </div>
+                                                                </div>
+                                                                {% endfor %}
+                                                                <button type="button" class="btn btn-sm btn-outline-secondary add-response-option mt-1">Add Option</button>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    <button class="btn btn-outline-secondary btn-sm add-option">
+                                        <i class="bi bi-plus"></i> Add Option
+                                    </button>
+                                {% endif %}
+                            </div>
+
+                            <!-- Required checkbox -->
+                            <div class="form-check mt-3">
+                                <input class="form-check-input question-required" type="checkbox"
+                                       {% if question.required %}checked{% endif %} 
+                                       id="required-{{ question.id }}">
+                                <label class="form-check-label" for="required-{{ question.id }}">Required</label>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button id="add-question" class="btn btn-outline-primary w-100 mb-3">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Question
+                </button>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+                    <button id="save-form" class="btn btn-primary">Save Form</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+<style>
+    .subquestion-card { 
+        background-color: #f8f9fa; 
+        border-left: 3px solid #dee2e6; 
+        margin-left: 1rem; 
+    }
+    .nested-subquestion-card {
+        background-color: #eff1f3;
+        border-left: 3px solid #adb5bd;
+        margin-left: 0.5rem;
+    }
+    .card-body { 
+        padding: 0.75rem; 
+    }
+    .nested-subquestion-card .card-body {
+        padding: 0.5rem;
+    }
+    .input-group {
+        margin-bottom: 0.5rem !important;
+    }
+    .option-group {
+        border-left: 3px solid #e9ecef;
+        padding-left: 0.75rem;
+    }
+    .option-group:hover {
+        border-left-color: #6c757d;
+    }
+    .subquestions-container,
+    .nested-subquestions-container {
+        transition: all 0.3s ease;
+    }
+    .add-nested-subquestion {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .response-option-group {
+        position: relative;
+    }
+    .depth-indicator {
+        position: absolute;
+        left: -15px;
+        top: 50%;
+        height: 100%;
+        border-left: 2px dotted #dee2e6;
+    }
+    .form-nesting-level-indicator {
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const qc = document.getElementById('questions-container');
+    const addQuestionBtn = document.getElementById('add-question');
+    const saveFormBtn = document.getElementById('save-form');
+    const formId = "{{ form.id }}";
+    
+    // Max nesting level (to prevent infinite nesting and performance issues)
+    const MAX_NESTING_LEVEL = 3;
+  
+    // 1) Add new question
+    addQuestionBtn.onclick = () => qc.appendChild(createQuestionCard());
+  
+    // 2) Show/hide options when question type changes
+    qc.addEventListener('change', e => {
+      if (e.target.classList.contains('question-type')) {
+        const card = e.target.closest('.card-body');
+        showOrHideOptionFields(card, e.target.value);
+      }
+  
+      // Sub-question type selected → render appropriate input(s)
+      if (e.target.classList.contains('subquestion-type')) {
+        const subCard = e.target.closest('.subquestion-card');
+        renderSubquestionResponse(subCard, e.target.value);
+      }
+      
+      // Nested sub-question type selected → render appropriate input(s)
+      if (e.target.classList.contains('nested-subquestion-type')) {
+        const nestedSubCard = e.target.closest('.nested-subquestion-card');
+        renderNestedSubquestionResponse(nestedSubCard, e.target.value);
+      }
+    });
+  
+    // 3) Handle all clicks: delete, add option, add sub-question, add response-option, etc.
+    qc.addEventListener('click', e => {
+      // Delete handlers
+      if (e.target.closest('.delete-question')) {
+        if (confirm('Are you sure you want to delete this question?')) {
+          e.target.closest('.question-card').remove();
+        }
+      }
+      else if (e.target.closest('.delete-option')) {
+        if (confirm('Delete this option and all its sub-questions?')) {
+          e.target.closest('.option-group').remove();
+        }
+      }
+      else if (e.target.closest('.delete-subquestion')) {
+        if (confirm('Delete this sub-question and any nested questions?')) {
+          e.target.closest('.subquestion-card').remove();
+        }
+      }
+      else if (e.target.closest('.delete-nested-subquestion')) {
+        e.target.closest('.nested-subquestion-card').remove();
+      }
+      else if (e.target.closest('.delete-response-option')) {
+        const responseOption = e.target.closest('.response-option-group');
+        if (responseOption) {
+          // If it has a nested-subquestions container with children, confirm
+          const nestedContainer = responseOption.querySelector('.nested-subquestions-container');
+          if (nestedContainer && nestedContainer.children.length > 0) {
+            if (confirm('Delete this option and its nested questions?')) {
+              responseOption.remove();
+            }
+          } else {
+            responseOption.remove();
+          }
+        } else {
+          // Legacy support for older format
+          e.target.closest('.response-option').remove();
+        }
+      }
+      
+      // Add handlers
+      else if (e.target.closest('.add-option')) {
+        const opts = e.target.closest('.options-container');
+        opts.insertBefore(createOptionGroup(), e.target);
+      }
+      else if (e.target.closest('.add-subquestion')) {
+        const optionGroup = e.target.closest('.option-group');
+        const subContainer = optionGroup.querySelector('.subquestions-container');
+        subContainer.appendChild(createSubquestionInput());
+      }
+      else if (e.target.closest('.add-response-option')) {
+        const resp = e.target.closest('.subquestion-response');
+        resp.insertBefore(createResponseOptionGroup(), e.target);
+      }
+      else if (e.target.closest('.add-nested-subquestion')) {
+        const responseOptionGroup = e.target.closest('.response-option-group');
+        const nestedContainer = responseOptionGroup.querySelector('.nested-subquestions-container');
+        
+        // Check nesting level to prevent too deep hierarchies
+        const nestingLevel = countParents(responseOptionGroup, '.response-option-group') + 1;
+        
+        if (nestingLevel <= MAX_NESTING_LEVEL) {
+          nestedContainer.appendChild(createNestedSubquestionInput());
+        } else {
+          alert(`Maximum nesting level (${MAX_NESTING_LEVEL}) reached. Cannot add more nested questions.`);
+        }
+      }
+    });
+  
+    // 4) Save form
+saveFormBtn.onclick = async () => {
+  const questions = [];
+  document.querySelectorAll('.question-card').forEach((card, i) => {
+    const questionType = card.querySelector('.question-type').value;
+    const data = {
+      id: card.dataset.questionId || null,
+      question_text: card.querySelector('.question-text').value.trim(),
+      question_type: questionType,
+      required: card.querySelector('.question-required').checked,
+      order: i, 
+      options: null
+    };
+
+    // Special handling for question types with options
+    if (['radio','multiple_choice'].includes(questionType)) {
+      const opts = [];
+      
+      // Process each option group
+      card.querySelectorAll('.option-group').forEach(og => {
+        const optionText = og.querySelector('.option-text').value.trim();
+        if (!optionText) return; // Skip empty options
+        
+        const optionData = {
+          text: optionText,
+          subquestions: [] 
+        };
+        
+        // Process subquestions for this option
+        og.querySelectorAll('.subquestion-card').forEach(sq => {
+          const subqText = sq.querySelector('.subquestion-text').value.trim();
+          if (!subqText) return; // Skip empty subquestions
+          
+          const subqType = sq.querySelector('.subquestion-type').value;
+          const subQuestionData = { 
+            text: subqText, 
+            type: subqType,
+            options: null
+          };
+          
+          // Handle response options for radio/checkbox sub-questions
+          if (subqType === 'radio' || subqType === 'checkbox') {
+            const responseOptions = [];
+            
+            sq.querySelectorAll('.response-option-group').forEach(rog => {
+              const optInput = rog.querySelector('.response-option input');
+              if (!optInput) return; // Skip if no input found
+              
+              const optText = optInput.value.trim();
+              if (!optText) return; // Skip empty options
+              
+              const responseOptData = {
+                text: optText,
+                subquestions: []
+              };
+              
+              // Process nested subquestions (level 3)
+              rog.querySelectorAll('.nested-subquestion-card').forEach(nsc => {
+                const nestedText = nsc.querySelector('.nested-subquestion-text').value.trim();
+                if (!nestedText) return; // Skip empty nested questions
+                
+                const nestedType = nsc.querySelector('.nested-subquestion-type').value;
+                responseOptData.subquestions.push({
+                  text: nestedText,
+                  type: nestedType,
+                  // Further nesting could be added here if needed
+                });
+              });
+              
+              responseOptions.push(responseOptData);
+            });
+            
+            if (responseOptions.length > 0) {
+              subQuestionData.options = responseOptions;
+            }
+          }
+          
+          optionData.subquestions.push(subQuestionData);
+        });
+        
+        opts.push(optionData);
+      });
+      
+      if (opts.length > 0) {
+        data.options = JSON.stringify(opts); // Convert to JSON string
+      }
+    }
+    
+    questions.push(data);
+  });
+
+  try {
+    // Log the data being sent for debugging
+    console.log('Sending form data:', questions);
+    
+    const res = await fetch(`/form/${formId}/update`, {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ questions })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      console.log('Response:', data);
+      window.location = '/dashboard';
+    } else {
+      let errorMessage = 'Unknown error';
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorData.error || 'Unknown error';
+      } catch (e) {
+        console.error('Error parsing error response:', e);
+      }
+      alert(`Error saving: ${errorMessage}`);
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    alert('Network error while saving form');
+  }
+};
+  
+    // ─── Helper Functions ──────────────────────────────────────────────────────────────
+  
+    // Count parent elements matching a selector to determine nesting level
+    function countParents(element, selector) {
+      let count = 0;
+      let parent = element.parentElement;
+      
+      while (parent) {
+        if (parent.matches(selector)) {
+          count++;
+        }
+        parent = parent.parentElement;
+      }
+      
+      return count;
+    }
+    
+    function showOrHideOptionFields(cardBody, qType) {
+      const oc = cardBody.querySelector('.options-container');
+      oc.innerHTML = '';
+      
+      if (['radio','multiple_choice'].includes(qType)) {
+        oc.appendChild(createOptionGroup());
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-secondary btn-sm add-option';
+        btn.innerHTML = '<i class="bi bi-plus"></i> Add Option';
+        oc.appendChild(btn);
+      }
+    }
+  
+    function createQuestionCard() {
+      const div = document.createElement('div');
+      div.className = 'question-card card mb-3';
+      div.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <input type="text" class="form-control form-control-lg question-text" placeholder="Question text">
+            <button class="btn btn-outline-danger ms-2 delete-question" title="Delete question">
+              <i class="bi bi-trash"></i>
+              <span class="visually-hidden">Delete question</span>
+            </button>
+          </div>
+          <div class="mb-3">
+            <select class="form-select question-type">
+              <option value="text">Text</option>
+              <option value="password">Password</option>
+              <option value="email">Email</option>
+              <option value="number">Number</option>
+              <option value="tel">Telephone</option>
+              <option value="url">URL</option>
+              <option value="search">Search</option>
+              <option value="date">Date</option>
+              <option value="datetime-local">Datetime</option>
+              <option value="month">Month</option>
+              <option value="week">Week</option>
+              <option value="time">Time</option>
+              <option value="color">Color</option>
+              <option value="file">File</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="radio">Radio/Multiple Choice</option>
+              <option value="range">Range</option>
+              <option value="hidden">Hidden</option>
+              <option value="image">Image</option>
+              <option value="scale">Scale (Likert)</option>
+              <option value="matrix">Matrix</option>
+            </select>
+          </div>
+          <div class="options-container mb-3"></div>
+          <div class="form-check">
+            <input class="form-check-input question-required" type="checkbox" id="required-new">
+            <label class="form-check-label" for="required-new">Required</label>
+          </div>
+        </div>`;
+      return div;
+    }
+  
+    function createOptionGroup() {
+      const d = document.createElement('div');
+      d.className = 'option-group mb-2';
+      d.innerHTML = `
+        <div class="d-flex align-items-center">
+          <input type="text" class="form-control option-text me-2" placeholder="Option text">
+          <button class="btn btn-outline-danger delete-option me-2" title="Delete option">
+            <i class="bi bi-x"></i>
+            <span class="visually-hidden">Delete option</span>
+          </button>
+          <button class="btn btn-outline-secondary add-subquestion" title="Add a sub-question that appears when this option is selected">
+            Add Sub-question
+          </button>
+        </div>
+        <div class="subquestions-container ps-4 mt-2"></div>`;
+      return d;
+    }
+  
+    function createSubquestionInput() {
+      const card = document.createElement('div');
+      card.className = 'subquestion-card card mb-2';
+      card.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <input type="text" class="form-control subquestion-text me-2"
+                   placeholder="Sub-question text">
+            <select class="form-select subquestion-type me-2" style="max-width:150px;">
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="email">Email</option>
+              <option value="date">Date</option>
+              <option value="radio">Radio</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="file">File</option>
+              <option value="password">Password</option>
+            </select>
+            <button class="btn btn-outline-danger delete-subquestion" title="Delete sub-question">
+              <i class="bi bi-x"></i>
+              <span class="visually-hidden">Delete sub-question</span>
+            </button>
+          </div>
+          <div class="subquestion-response mt-2"></div>
+        </div>`;
+      return card;
+    }
+    
+    function createResponseOptionGroup() {
+      const div = document.createElement('div');
+      div.className = 'response-option-group mb-2';
+      div.innerHTML = `
+        <div class="response-option input-group mb-1">
+          <input type="text" class="form-control" placeholder="Option text">
+          <button class="btn btn-outline-danger delete-response-option">
+            <i class="bi bi-x"></i>
+          </button>
+          <button class="btn btn-outline-secondary add-nested-subquestion" title="Add a nested question for this option">
+            <i class="bi bi-plus-circle"></i>
+          </button>
+        </div>
+        <div class="nested-subquestions-container ps-4 mt-1"></div>`;
+      return div;
+    }
+    
+    function createNestedSubquestionInput() {
+      const card = document.createElement('div');
+      card.className = 'nested-subquestion-card card mb-2';
+      card.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <input type="text" class="form-control nested-subquestion-text me-2"
+                   placeholder="Nested question text">
+            <select class="form-select nested-subquestion-type me-2" style="max-width:130px;">
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="email">Email</option>
+              <option value="date">Date</option>
+              <option value="radio">Radio</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="file">File</option>
+              <option value="password">Password</option>
+            </select>
+            <button class="btn btn-outline-danger delete-nested-subquestion" title="Delete nested question">
+              <i class="bi bi-x"></i>
+              <span class="visually-hidden">Delete nested question</span>
+            </button>
+          </div>
+          <div class="nested-subquestion-response mt-2"></div>
+        </div>`;
+      return card;
+    }
+  
+    function renderSubquestionResponse(subCard, type) {
+      const c = subCard.querySelector('.subquestion-response');
+      c.innerHTML = '';
+      
+      if (['text','number','email','date','file','password'].includes(type)) {
+        const inp = document.createElement('input');
+        inp.type = type;
+        inp.className = 'form-control';
+        inp.placeholder = `Example ${type} input`;
+        inp.disabled = true; // Just for display
+        c.appendChild(inp);
+      }
+      else if (type === 'radio' || type === 'checkbox') {
+        // Add two default options with ability to add nested sub-questions
+        for (let i = 0; i < 2; i++) {
+          c.appendChild(createResponseOptionGroup());
+        }
+        
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-secondary add-response-option';
+        btn.textContent = 'Add Option';
+        c.appendChild(btn);
+      }
+    }
+    
+    function renderNestedSubquestionResponse(nestedSubCard, type) {
+      const c = nestedSubCard.querySelector('.nested-subquestion-response');
+      c.innerHTML = '';
+      
+      if (['text','number','email','date','file','password'].includes(type)) {
+        const inp = document.createElement('input');
+        inp.type = type;
+        inp.className = 'form-control';
+        inp.placeholder = `Example ${type} input`;
+        inp.disabled = true; // Just for display
+        c.appendChild(inp);
+      }
+      else if (type === 'radio' || type === 'checkbox') {
+        // For nested radio/checkbox, just show sample options without further nesting
+        const container = document.createElement('div');
+        container.className = 'nested-response-options';
+        
+        for (let i = 0; i < 2; i++) {
+          const option = document.createElement('div');
+          option.className = 'input-group mb-1';
+          option.innerHTML = `
+            <input type="${type}" disabled>
+            <input type="text" class="form-control" placeholder="Option ${i+1}" value="Option ${i+1}">
+          `;
+          container.appendChild(option);
+        }
+        
+        c.appendChild(container);
+        
+        // Add note about nesting limits  
+        
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-secondary add-response-option';
+        btn.textContent = 'Add Option';
+        c.appendChild(btn);
+      }
+    }
+    
+    // Initialize subquestion response fields based on their types
+    document.querySelectorAll('.subquestion-card').forEach(card => {
+      const typeSelect = card.querySelector('.subquestion-type');
+      if (typeSelect) {
+        renderSubquestionResponse(card, typeSelect.value);
+      }
+    });
+  });
+</script>
+{% endblock %}
