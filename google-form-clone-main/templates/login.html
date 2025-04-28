@@ -1,0 +1,66 @@
+<!-- login.html -->
+{% extends "base.html" %}
+
+{% block title %}Login - Google Forms Clone{% endblock %}
+
+{% block content %}
+<style>
+    .auth-card {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    .auth-header {
+        background: none;
+        border-bottom: none;
+        padding: 2rem 2rem 0;
+    }
+    .form-control:focus {
+        border-color: #1a73e8;
+        box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+    }
+    .btn-primary {
+        background-color: #1a73e8;
+        padding: 12px;
+        font-size: 1rem;
+    }
+</style>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card auth-card">
+                <div class="card-header auth-header">
+                    <h3 class="text-center mb-4">Your Login</h3>
+                    <p class="text-center text-muted">Enter your logins to continue</p>
+                </div>
+                <div class="card-body px-5">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email or Phone</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="Enter email or phone" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" 
+                                   name="password" placeholder="Enter password" required>
+                        </div>
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary rounded-3">Login</button>
+                        </div>
+                        <div class="text-center mb-3">
+                            <a href="#forgot-password" class="text-decoration-none">Forgot password?</a>
+                        </div>
+                    </form>
+                    <div class="text-center pt-3 border-top">
+                        <p class="text-muted">Don't have an account? 
+                            <a href="{{ url_for('signup') }}" class="text-decoration-none">Sign Up</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
