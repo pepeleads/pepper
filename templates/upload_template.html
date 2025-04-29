@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Upload Template - Google Forms Clone{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 2rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 0.2rem rgba(231,76,60,0.25);
+    }
+    
+    .preview-section {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .preview-section:hover {
+        border-color: #e74c3c;
+        background: #fff5f5;
+    }
+    
+    .preview-section.dragover {
+        border-color: #e74c3c;
+        background: #fff5f5;
+    }
+    
+    .preview-image {
+        max-width: 100%;
+        max-height: 200px;
+        object-fit: contain;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="upload-container">
+        <h1 class="display-4 mb-4">Upload Template</h1>
+        
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label for="title" class="form-label">Template Title</label>
+                <input type="text" class="form-control" id="title" name="title" required>
+            </div>
+            
+            <div class="mb-4">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category" required>
+                    <option value="">Select a category</option>
+                    <option value="survey">Survey</option>
+                    <option value="registration">Registration</option>
+                    <option value="feedback">Feedback</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="application">Application</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">Preview Image (Optional)</label>
+                <div class="preview-section" id="previewSection">
+                    <input type="file" id="previewImage" name="preview_image" accept="image/*" class="d-none" title="Template preview image">
+                    <img id="previewImageDisplay" class="preview-image d-none" alt="Template preview">
+                    <div id="previewPlaceholder">
+                        <i class="bi bi-image display-4 text-muted mb-3"></i>
+                        <p class="mb-2">Drag and drop an image here or click to select</p>
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('previewImage').click()">
+                            Select Image
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="questions" class="form-label">Questions (JSON)</label>
+                <textarea class="form-control" id="questions" name="questions" rows="10" required 
+                          placeholder="Enter your questions in JSON format"></textarea>
+                <div class="form-text">
+                    Enter the questions in JSON format. Example:
+                    <pre class="mt-2">[
+  {
+    "question_text": "What is your name?",
+    "question_type": "text",
+    "required": true
+  },
+  {
+    "question_text": "How satisfied are you?",
+    "question_type": "radio",
+    "options": ["Very Satisfied", "Satisfied", "Neutral", "Dissatisfied"],
+    "required": true
+  }
+]</pre>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
+                    <label class="form-check-label" for="is_public">
+                        Make this template public
+                    </label>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('template_gallery') }}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    Upload Template
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const previewSection = document.getElementById('previewSection');
+    const previewImage = document.getElementById('previewImage');
+    const previewImageDisplay = document.getElementById('previewImageDisplay');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    
+    // Handle drag and drop
+    previewSection.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        previewSection.classList.add('dragover');
+    });
+    
+    previewSection.addEventListener('dragleave', () => {
+        previewSection.classList.remove('dragover');
+    });
+    
+    previewSection.addEventListener('drop', (e) => {
+        e.preventDefault();
+        previewSection.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleImage(file);
+        }
+    });
+    
+    // Handle file selection
+    previewImage.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleImage(file);
+        }
+    });
+    
+    function handleImage(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImageDisplay.src = e.target.result;
+            previewImageDisplay.classList.remove('d-none');
+            previewPlaceholder.classList.add('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %} 
