@@ -2,46 +2,288 @@
 
 {% block title %}Dashboard - Google Forms Clone{% endblock %}
 
+{% block extra_css %}
+<style>
+    .template-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .template-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .template-preview {
+        height: 150px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .template-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: cover;
+    }
+    
+    .category-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255,255,255,0.9);
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: none;
+        padding: 0.5rem 1rem;
+        margin-right: 0.5rem;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #e74c3c;
+        border-bottom: 2px solid #e74c3c;
+        background: none;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #e74c3c;
+        border-bottom: 2px solid #e74c3c;
+    }
+    
+    .predefined-template {
+        border: 2px solid #e74c3c;
+    }
+    
+    .predefined-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: #e74c3c;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <h2>Your Forms</h2>
-    
-    <div class="row mb-4">
-        <div class="col">
-            <a href="{{ url_for('create_form') }}" class="btn btn-primary">Create New Form</a>
-            <a href="{{ url_for('upload_mindmap') }}" class="btn btn-secondary">Upload Mindmap</a>
-            <a href="{{ url_for('upload_pdf') }}" class="btn btn-info">Upload PDF</a>
-            <a href="{{ url_for('manage_companies') }}" class="btn btn-success">Manage Companies</a>
+    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms" type="button" role="tab">
+                Your Forms
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">
+                Templates
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="dashboardTabsContent">
+        <!-- Forms Tab -->
+        <div class="tab-pane fade show active" id="forms" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col">
+                    <a href="{{ url_for('create_form') }}" class="btn btn-primary">Create New Form</a>
+                    <a href="{{ url_for('upload_mindmap') }}" class="btn btn-secondary">Upload Mindmap</a>
+                    <a href="{{ url_for('upload_pdf') }}" class="btn btn-info">Upload PDF</a>
+                </div>
+            </div>
+            
+            <div class="row">
+                {% for form in forms %}
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ form.title }}</h5>
+                            <p class="card-text">{{ form.description }}</p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    Created: {{ form.created_at.strftime('%Y-%m-%d') }}
+                                    {% if form.company %}
+                                    <br>Company: {{ form.company.name }}
+                                    {% endif %}
+                                </small>
+                            </p>
+                            <div class="btn-group">
+                                <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <a href="{{ url_for('share_form', form_id=form.id) }}" class="btn btn-sm btn-info">Share</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmDelete({{ form.id }}, '{{ form.title }}')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-    </div>
-    
-    <div class="row">
-        {% for form in forms %}
-        <div class="col-md-4 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">{{ form.title }}</h5>
-                    <p class="card-text">{{ form.description }}</p>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            Created: {{ form.created_at.strftime('%Y-%m-%d') }}
-                            {% if form.company %}
-                            <br>Company: <span class="badge bg-info text-dark">{{ form.company.name }}</span>
-                            {% endif %}
-                        </small>
-                    </p>
-                    <div class="btn-group">
-                        <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                        <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                        <a href="{{ url_for('view_responses', form_id=form.id) }}" class="btn btn-sm btn-outline-success">Responses</a>
-                        <a href="{{ url_for('share_form', form_id=form.id) }}" class="btn btn-sm btn-info">Share</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                onclick="confirmDelete({{ form.id }}, '{{ form.title }}')">Delete</button>
+
+        <!-- Templates Tab -->
+        <div class="tab-pane fade" id="templates" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col">
+                    <h3 class="mb-3">Start a new form</h3>
+                </div>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+                <!-- Blank form card -->
+                <div class="col">
+                    <div class="card template-card h-100">
+                        <a href="{{ url_for('create_form') }}" class="text-decoration-none">
+                            <div class="template-preview d-flex align-items-center justify-content-center" style="background-color: #f8f9fa;">
+                                <i class="bi bi-plus-circle" style="font-size: 3rem; color: #e74c3c;"></i>
+                            </div>
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-dark">Blank Form</h5>
+                                <p class="card-text text-muted">Create a form from scratch</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                {% for template in templates %}
+                <div class="col">
+                    <div class="card template-card h-100">
+                        <a href="{{ url_for('use_template', template_id=template.id) }}" class="text-decoration-none">
+                            <div class="template-preview">
+                                {% if template.preview_image %}
+                                <img src="{{ template.preview_image }}" alt="{{ template.title }}" class="card-img-top">
+                                {% else %}
+                                <div class="d-flex align-items-center justify-content-center h-100" style="background-color: #f0f0f0;">
+                                    <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #6c757d;"></i>
+                                </div>
+                                {% endif %}
+                                <span class="category-badge">{{ template.category }}</span>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title text-dark">{{ template.title }}</h5>
+                                <p class="card-text text-muted">{{ template.description }}</p>
+                            </div>
+                        </a>
+                        <div class="card-footer bg-white border-top-0">
+                            <div class="d-flex justify-content-end">
+                                <a href="{{ url_for('use_template', template_id=template.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Use
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <hr class="my-5">
+            
+            <div class="row mb-4">
+                <div class="col">
+                    <h3 class="mb-3">Or import a form</h3>
+                    <div class="d-flex gap-3">
+                        <a href="{{ url_for('upload_mindmap') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-diagram-3"></i> Upload Mindmap
+                        </a>
+                        <a href="{{ url_for('upload_pdf') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-file-pdf"></i> Upload PDF
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete the form "<span id="formTitle"></span>"? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Form Modal -->
+<div class="modal fade" id="shareFormModal" tabindex="-1" aria-labelledby="shareFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareFormModalLabel">Share Form</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You can share this form using the link below:</p>
+                <div class="input-group mb-3">
+                    <input type="text" id="shareUrl" class="form-control" readonly>
+                    <button class="btn btn-outline-primary" type="button" onclick="copyShareLink()">Copy</button>
+                </div>
+                <div id="copySuccess" class="alert alert-success mt-2" style="display: none;">
+                    Link copied to clipboard!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showShareModal(formId, userId) {
+    const baseUrl = window.location.origin;
+    const shareUrl = `${baseUrl}/?form_id=${formId}&user_id=${userId}`;
+    document.getElementById('shareUrl').value = shareUrl;
+    var shareModal = new bootstrap.Modal(document.getElementById('shareFormModal'));
+    shareModal.show();
+}
+
+function copyShareLink() {
+    var copyText = document.getElementById("shareUrl");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    
+    var copySuccess = document.getElementById("copySuccess");
+    copySuccess.style.display = "block";
+    
+    setTimeout(function() {
+        copySuccess.style.display = "none";
+    }, 3000);
+}
+
+function confirmDelete(formId, formTitle) {
+    document.getElementById('formTitle').textContent = formTitle;
+    document.getElementById('deleteForm').action = `/form/${formId}/delete`;
+    
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
 {% endblock %} 

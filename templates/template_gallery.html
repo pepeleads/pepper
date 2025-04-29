@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Form Templates - Google Forms Clone{% endblock %}
+
+{% block extra_css %}
+<style>
+    .template-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .template-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .template-preview {
+        height: 200px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .template-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: cover;
+    }
+    
+    .template-preview .preview-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .template-card:hover .preview-overlay {
+        opacity: 1;
+    }
+    
+    .category-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255,255,255,0.9);
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .search-box {
+        border-radius: 25px;
+        padding-left: 20px;
+        padding-right: 20px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box:focus {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 0.2rem rgba(231,76,60,0.25);
+    }
+    
+    .category-filter {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    
+    .category-btn {
+        border-radius: 20px;
+        padding: 8px 16px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    .category-btn:hover, .category-btn.active {
+        background: #e74c3c;
+        color: white;
+        border-color: #e74c3c;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-4 mb-3">Form Templates</h1>
+            <p class="lead text-muted">Choose from our collection of pre-designed form templates or create your own.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('upload_template') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Upload Template
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control search-box border-start-0" 
+                       placeholder="Search templates..." 
+                       value="{{ search_query }}"
+                       onkeyup="if(event.keyCode === 13) searchTemplates(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="category-filter">
+        <a href="{{ url_for('template_gallery') }}" 
+           class="category-btn {% if not selected_category %}active{% endif %}">
+            All
+        </a>
+        {% for category in categories %}
+        <a href="{{ url_for('template_gallery', category=category) }}" 
+           class="category-btn {% if selected_category == category %}active{% endif %}">
+            {{ category }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for template in templates %}
+        <div class="col">
+            <div class="card template-card h-100">
+                <div class="template-preview">
+                    {% if template.preview_image %}
+                    <img src="{{ template.preview_image }}" alt="{{ template.title }}">
+                    {% else %}
+                    <i class="bi bi-file-earmark-text display-4 text-muted"></i>
+                    {% endif %}
+                    <div class="preview-overlay">
+                        <a href="{{ url_for('view_template', template_id=template.id) }}" 
+                           class="btn btn-light">Preview</a>
+                    </div>
+                    <span class="category-badge">{{ template.category }}</span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ template.title }}</h5>
+                    <p class="card-text text-muted">{{ template.description }}</p>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {{ template.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                        <a href="{{ url_for('use_template', template_id=template.id) }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            Use Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-search display-1 text-muted"></i>
+                <h3 class="mt-3">No templates found</h3>
+                <p class="text-muted">Try adjusting your search or category filter</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchTemplates(query) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('search', query);
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %} 
