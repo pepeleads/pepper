@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,6 +8,7 @@ from datetime import datetime
 import PyPDF2
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
+from flask_moment import Moment
 import json
 import random
 import requests
@@ -15,6 +16,7 @@ from datetime import datetime
 import uuid
 from urllib.parse import urlencode
 import copy
+import secrets
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -26,6 +28,14 @@ app.jinja_env.filters['fromjson'] = json.loads
 
 # Create uploads directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize Flask-Moment for handling dates and times in templates
+moment = Moment(app)
+
+# Add context processor for current date
+@app.context_processor
+def inject_now():
+    return {'now': datetime.now()}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -39,6 +49,12 @@ def fromjson_filter(s):
     except Exception:
         return []
 app.jinja_env.filters['fromjson'] = fromjson_filter
+
+def datetime_filter(date):
+    if date:
+        return date.strftime('%Y-%m-%d %H:%M:%S')
+    return ''
+app.jinja_env.filters['datetime'] = datetime_filter
 
 # Models
 class User(UserMixin, db.Model):
@@ -68,6 +84,14 @@ class Form(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey('company.id', name='fk_form_company'), nullable=True)
     questions = db.relationship('Question', backref='form', lazy=True, cascade='all, delete-orphan')
     responses = db.relationship('Response', backref='form', lazy=True, cascade='all, delete-orphan')
+    is_closed = db.Column(db.Boolean, default=False)  # New field to track if the form is closed/expired
+    requires_consent = db.Column(db.Boolean, default=True)  # Require privacy policy and terms consent
+    
+    # Quiz-related fields
+    is_quiz = db.Column(db.Boolean, default=False)  # Is this form a quiz?
+    passing_score = db.Column(db.Integer, default=0)  # Passing score percentage
+    show_score = db.Column(db.Boolean, default=True)  # Whether to show score to respondents
+    sharing_token = db.Column(db.String(255), nullable=True)  # New field for sharing token
 
 class SubQuestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -133,6 +157,12 @@ class Question(db.Model):
     required = db.Column(db.Boolean, default=False)
     order = db.Column(db.Integer, nullable=False)
     
+    # Quiz-related fields
+    is_quiz_question = db.Column(db.Boolean, default=False)
+    correct_answer = db.Column(db.Text, nullable=True)  # JSON string for correct answers
+    points = db.Column(db.Integer, default=0)  # Points for correct answer
+    feedback = db.Column(db.Text, nullable=True)  # Feedback for the question
+    
     # Add relationship to subquestions
     subquestions = relationship('SubQuestion', backref='parent_question', lazy=True, 
                                cascade='all, delete-orphan')
@@ -168,6 +198,13 @@ class Response(db.Model):
     utm_term = db.Column(db.String(100), nullable=True)
     # New field for device type
     device_type = db.Column(db.String(20), nullable=True)
+    # Privacy and Terms consent
+    has_consent = db.Column(db.Boolean, default=False)
+    
+    # Quiz-related fields
+    score = db.Column(db.Integer, nullable=True)  # Quiz score (total points)
+    max_score = db.Column(db.Integer, nullable=True)  # Maximum possible score
+    passed = db.Column(db.Boolean, nullable=True)  # Whether the user passed
 
 class Answer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -425,13 +462,15 @@ def create_form():
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
+        requires_consent = 'requires_consent' in request.form
         
         # Create a new form
         form = Form(
             title=title,
             description=description,
             user_id=current_user.id,
-            company_id=session.get('referral_company_id')
+            company_id=session.get('referral_company_id'),
+            requires_consent=requires_consent
         )
         
         # Add form to database
@@ -448,37 +487,17 @@ def create_form():
 @app.route('/form/<int:form_id>')
 def view_form(form_id):
     form = Form.query.get_or_404(form_id)
+    token = request.args.get('token')
     
-    # Get all subquestions for this form
-    subquestions = SubQuestion.query.join(Question).filter(Question.form_id == form_id).all()
-
-    # Process each question to handle nested structures
-    for question in form.questions:
-        if question.question_type in ['radio', 'multiple_choice']:
-            try:
-                # Parse options with full nested structure
-                question.nested_options = json.loads(question.options or '[]')
-                
-                # If options is a plain array, convert to nested format
-                if question.nested_options and isinstance(question.nested_options[0], str):
-                    question.nested_options = [{"text": opt, "subquestions": []} for opt in question.nested_options]
-            except (json.JSONDecodeError, TypeError, IndexError):
-                # Fallback for legacy data format
-                try:
-                    raw_options = question.get_options()
-                    # Convert simple options to the nested format
-                    question.nested_options = [
-                        {"text": opt, "subquestions": []} 
-                        for opt in raw_options if opt
-                    ]
-                except Exception:
-                    # Last resort fallback
-                    question.nested_options = []
-
-    # Sort questions by order
-    form.questions.sort(key=lambda q: q.order)
+    # Check if the form is private and if the token is valid
+    if form.is_private and (not token or token != form.sharing_token):
+        if current_user.is_authenticated and form.user_id == current_user.id:
+            pass  # Allow form owner to view
+        else:
+            flash('This form is private.', 'warning')
+            return redirect(url_for('index'))
     
-    return render_template('view_form.html', form=form, subquestions=subquestions)
+    return render_template('view_form.html', form=form)
 
 @app.route('/form/<int:form_id>/edit')
 @login_required
@@ -502,9 +521,131 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+# Helper function to export responses as JSON
+def export_response_to_json(response, form):
+    """
+    Helper function to export a single response as JSON
+    
+    Args:
+        response: The Response object to export
+        form: The Form object the response belongs to
+        
+    Returns:
+        dict: JSON-serializable dictionary of the response data
+        str: Path to the saved JSON file
+    """
+    # Create response data structure
+    response_data = {
+        'response_id': response.id,
+        'form_id': form.id,
+        'form_title': form.title,
+        'submitted_at': response.submitted_at.isoformat(),
+        'utm_data': {
+            'source': response.utm_source,
+            'medium': response.utm_medium,
+            'campaign': response.utm_campaign,
+            'content': response.utm_content,
+            'term': response.utm_term
+        },
+        'device_type': response.device_type,
+        'company_id': response.company_id,
+        'company_name': response.company.name if response.company else None,
+        'answers': []
+    }
+    
+    # Get all answers for this response
+    for question in form.questions:
+        answer = Answer.query.filter_by(
+            response_id=response.id,
+            question_id=question.id
+        ).first()
+        
+        if answer:
+            answer_data = {
+                'question_id': question.id,
+                'question_text': question.question_text,
+                'question_type': question.question_type,
+                'answer_text': answer.answer_text
+            }
+            
+            # Get subquestion answers if applicable
+            if question.question_type in ['radio', 'multiple_choice', 'checkbox']:
+                # Get selected options
+                selected_options = answer.answer_text.split(', ') if question.question_type == 'checkbox' else [answer.answer_text]
+                
+                # Get all subquestions for this question
+                subquestions = SubQuestion.query.filter_by(question_id=question.id).all()
+                
+                subquestion_answers = []
+                for subq in subquestions:
+                    # Only include subquestions matching selected parent options
+                    if any(opt in subq.parent_option for opt in selected_options):
+                        sq_answer = SubQuestionAnswer.query.filter_by(
+                            response_id=response.id,
+                            subquestion_id=subq.id
+                        ).first()
+                        
+                        if sq_answer:
+                            subquestion_answers.append({
+                                'subquestion_id': subq.id,
+                                'subquestion_text': subq.question_text,
+                                'subquestion_type': subq.question_type,
+                                'parent_option': subq.parent_option,
+                                'answer_text': sq_answer.answer_text
+                            })
+                
+                # Add subquestion answers if any exist
+                if subquestion_answers:
+                    answer_data['subquestion_answers'] = subquestion_answers
+            
+            response_data['answers'].append(answer_data)
+    
+    # Create export directory if it doesn't exist
+    export_path = os.path.join('exports', 'survey_responses')
+    os.makedirs(export_path, exist_ok=True)
+    
+    # Create filename with form ID, response ID and timestamp
+    timestamp = response.submitted_at.strftime('%Y%m%d%H%M%S')
+    filename = f"response_{form.id}_{response.id}_{timestamp}.json"
+    file_path = os.path.join(export_path, filename)
+    
+    # Write response to JSON file
+    with open(file_path, 'w') as json_file:
+        json.dump(response_data, json_file, indent=2)
+    
+    return response_data, file_path
+
 @app.route('/form/<int:form_id>/submit', methods=['POST'])
 def submit_form(form_id):
     form = Form.query.get_or_404(form_id)
+    
+    # Check if the form is closed
+    if form.is_closed:
+        # Handle API requests
+        if request.headers.get('X-Embedded') == 'true' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'status': 'error',
+                'message': 'This form is closed and no longer accepting responses.'
+            }), 403
+        
+        # Handle regular form submission
+        flash('This form is closed and no longer accepting responses.', 'danger')
+        return redirect(url_for('view_form', form_id=form_id))
+    
+    # Check for privacy consent if required
+    if form.requires_consent:
+        privacy_consent = request.form.get('privacy_consent')
+        if not privacy_consent or privacy_consent != 'on':
+            # Handle API requests
+            if request.headers.get('X-Embedded') == 'true' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'You must agree to the privacy policy and terms and conditions to submit this form.'
+                }), 400
+            
+            # Handle regular form submission
+            flash('You must agree to the privacy policy and terms and conditions to submit this form.', 'danger')
+            return redirect(url_for('view_form', form_id=form_id))
     
     try:
         # Get company ID from form or session
@@ -524,7 +665,9 @@ def submit_form(form_id):
             utm_content=utm_data.get('utm_content'),
             utm_term=utm_data.get('utm_term'),
             # Device type
-            device_type=session.get('device_type', 'desktop')
+            device_type=session.get('device_type', 'desktop'),
+            # Set privacy consent
+            has_consent=form.requires_consent and request.form.get('privacy_consent') == 'on'
         )
         db.session.add(response)
         db.session.flush()  # Assign ID without committing
@@ -536,6 +679,11 @@ def submit_form(form_id):
         print("Received form data:")
         for key, value in form_data.items():
             print(f"{key}: {value}")
+        
+        # Variables for quiz scoring
+        total_score = 0
+        max_possible_score = 0
+        answered_questions = []
         
         # Handle main questions
         for question in form.questions:
@@ -557,6 +705,31 @@ def submit_form(form_id):
                     answer_text=answer_text
                 )
                 db.session.add(answer)
+                answered_questions.append(question.id)
+                
+                # Calculate score for quiz questions
+                if form.is_quiz and question.is_quiz_question:
+                    max_possible_score += question.points
+                    
+                    # Check if answer is correct based on question type
+                    if question.correct_answer:
+                        correct_answer = json.loads(question.correct_answer)
+                        
+                        # For multiple choice and radio questions, check if the selected option matches
+                        if question.question_type in ['radio', 'multiple_choice']:
+                            # Correct answer is stored as the index of the option
+                            try:
+                                options = json.loads(question.options) if question.options else []
+                                # If answer_text matches the text of the correct option, it's correct
+                                if options and int(correct_answer) < len(options):
+                                    correct_option_text = options[int(correct_answer)]['text']
+                                    if answer_text == correct_option_text:
+                                        total_score += question.points
+                            except (ValueError, IndexError, json.JSONDecodeError) as e:
+                                print(f"Error checking quiz answer: {str(e)}")
+                        # For text, email, number, etc. - direct comparison
+                        elif answer_text == correct_answer:
+                            total_score += question.points
                 
                 # If this is a choice question and has subquestions, check for selected option
                 if question.question_type in ['radio', 'multiple_choice', 'checkbox'] and answer_text:
@@ -586,29 +759,72 @@ def submit_form(form_id):
                                 )
                                 db.session.add(sq_answer)
         
+        # Update response with quiz score if this is a quiz
+        if form.is_quiz:
+            response.score = total_score
+            response.max_score = max_possible_score
+            # Check if the respondent passed the quiz based on passing percentage
+            if max_possible_score > 0:
+                score_percentage = (total_score / max_possible_score) * 100
+                response.passed = score_percentage >= form.passing_score
+            else:
+                response.passed = False
+        
         # Commit all the answers and subquestion answers
         db.session.commit()
         
-        # Handle AJAX requests
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # Return JSON response for AJAX requests
-            return jsonify({
-                'status': 'success',
-                'message': 'Thank you! Your response has been recorded.',
-                'custom_thank_you': form.thank_you_message if hasattr(form, 'thank_you_message') and form.thank_you_message else None,
-                'redirect_url': url_for('dashboard')
+        # Export the response as JSON
+        _, export_path = export_response_to_json(response, form)
+        
+        print(f"Response exported to JSON: {export_path}")
+        
+        # Check if request is from an embedded iframe or AJAX request
+        is_embedded = request.headers.get('X-Embedded') == 'true' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        # Prepare data for response
+        response_data = {
+            'status': 'success',
+            'message': 'Thank you! Your response has been recorded.',
+            'custom_thank_you': form.thank_you_message if hasattr(form, 'thank_you_message') and form.thank_you_message else None,
+            'redirect_url': url_for('dashboard'),
+            'response_id': response.id
+        }
+        
+        # Add quiz results if this is a quiz and we should show the score
+        if form.is_quiz and form.show_score:
+            response_data.update({
+                'is_quiz': True,
+                'score': total_score,
+                'max_score': max_possible_score,
+                'passing_score': form.passing_score,
+                'passed': response.passed,
+                'score_percentage': round((total_score / max_possible_score) * 100) if max_possible_score > 0 else 0
             })
         
+        # Handle AJAX requests or embedded forms
+        if is_embedded:
+            # Return JSON response for AJAX requests
+            return jsonify(response_data)
+        
+        # Set flash message with quiz results if applicable
+        if form.is_quiz and form.show_score:
+            if response.passed:
+                flash(f'Congratulations! You passed the quiz with a score of {total_score}/{max_possible_score} ({response_data["score_percentage"]}%).', 'success')
+            else:
+                flash(f'You scored {total_score}/{max_possible_score} ({response_data["score_percentage"]}%). The passing score is {form.passing_score}%.', 'warning')
+        else:
+            flash('Thank you! Your response has been recorded.', 'success')
+            
         # Return standard page redirect for non-AJAX requests
-        flash('Thank you! Your response has been recorded.', 'success')
-        return redirect(url_for('form_submitted', form_id=form_id))
+        return redirect(url_for('form_submitted', form_id=form_id, response_id=response.id))
         
     except Exception as e:
         db.session.rollback()
         print(f"Error submitting form: {str(e)}")
         
-        # Handle AJAX requests
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Handle AJAX requests or embedded forms
+        is_embedded = request.headers.get('X-Embedded') == 'true' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_embedded:
             return jsonify({
                 'status': 'error',
                 'message': f'Error submitting form: {str(e)}'
@@ -621,7 +837,15 @@ def submit_form(form_id):
 @app.route('/form/<int:form_id>/submitted')
 def form_submitted(form_id):
     form = Form.query.get_or_404(form_id)
-    return render_template('form_submitted.html', form=form)
+    
+    # If response_id is in the URL, fetch it for displaying quiz results
+    response_id = request.args.get('response_id', type=int)
+    response = None
+    
+    if response_id:
+        response = Response.query.get(response_id)
+    
+    return render_template('form_submitted.html', form=form, response=response, now=datetime.now())
 
 @app.route('/form/<int:form_id>/responses')
 @login_required
@@ -634,56 +858,119 @@ def view_responses(form_id):
     responses = Response.query.filter_by(form_id=form_id).all()
     return render_template('view_responses.html', form=form, responses=responses)
 
+@app.route('/form/<int:form_id>/responses/export-json')
+@login_required
+def export_responses_json(form_id):
+    form = Form.query.get_or_404(form_id)
+    if form.user_id != current_user.id:
+        flash('You do not have permission to export these responses')
+        return redirect(url_for('dashboard'))
+    
+    responses = Response.query.filter_by(form_id=form_id).all()
+    
+    # Create a list to hold all responses
+    all_responses = []
+    
+    for response in responses:
+        # Use the helper function to export each response
+        response_data, _ = export_response_to_json(response, form)
+        all_responses.append(response_data)
+    
+    # Create export directory if it doesn't exist
+    export_path = os.path.join('exports', 'survey_responses')
+    os.makedirs(export_path, exist_ok=True)
+    
+    # Create filename with form ID and timestamp
+    timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    filename = f"all_responses_form_{form_id}_{timestamp}.json"
+    file_path = os.path.join(export_path, filename)
+    
+    # Write all responses to JSON file
+    with open(file_path, 'w') as json_file:
+        json.dump(all_responses, json_file, indent=2)
+    
+    # Return the file as a download
+    return send_file(file_path, as_attachment=True, download_name=filename)
+
 @app.route('/form/<int:form_id>/delete', methods=['POST'])
 @login_required
 def delete_form(form_id):
     form = Form.query.get_or_404(form_id)
     if form.user_id != current_user.id:
-        flash('You do not have permission to delete this form')
+        flash('You do not have permission to delete this form.', 'danger')
         return redirect(url_for('dashboard'))
     
-    try:
-        # Step 1: Delete associated PDF file and record
-        pdf_upload = PDFUpload.query.filter_by(form_id=form.id).first()
-        if pdf_upload:
-            pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_upload.filename)
-            if os.path.exists(pdf_path):
-                try:
-                    os.remove(pdf_path)
-                except Exception as e:
-                    print(f"Error deleting PDF file: {e}")
-            db.session.delete(pdf_upload)
-            db.session.commit()
-        
-        # Step 2: Delete all answers
-        answers = Answer.query.join(Response).filter(Response.form_id == form_id).all()
-        for answer in answers:
-            db.session.delete(answer)
-        db.session.commit()
-        
-        # Step 3: Delete all responses
-        responses = Response.query.filter_by(form_id=form_id).all()
-        for response in responses:
-            db.session.delete(response)
-        db.session.commit()
-        
-        # Step 4: Delete all questions
-        questions = Question.query.filter_by(form_id=form_id).all()
-        for question in questions:
-            db.session.delete(question)
-        db.session.commit()
-        
-        # Step 5: Finally, delete the form
-        db.session.delete(form)
-        db.session.commit()
-        
-        flash('Form and all associated data deleted successfully')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting form: {str(e)}')
-        return redirect(url_for('dashboard'))
+    # Delete all responses first
+    Response.query.filter_by(form_id=form_id).delete()
     
+    # Delete all questions
+    Question.query.filter_by(form_id=form_id).delete()
+    
+    # Delete the form
+    db.session.delete(form)
+    db.session.commit()
+    
+    flash('Form deleted successfully.', 'success')
     return redirect(url_for('dashboard'))
+
+@app.route('/form/<int:form_id>/share')
+@login_required
+def share_form(form_id):
+    form = Form.query.get_or_404(form_id)
+    if form.user_id != current_user.id:
+        flash('You do not have permission to share this form')
+        return redirect(url_for('dashboard'))
+    
+    # Getting the base URL with protocol (http/https)
+    if request.headers.get('X-Forwarded-Proto'):
+        proto = request.headers.get('X-Forwarded-Proto')
+    else:
+        proto = 'https' if request.is_secure else 'http'
+    
+    host = request.host
+    base_url = f"{proto}://{host}"
+    
+    # Use pepper-ads.com domain for production
+    production_url = "http://pepper-ads.com"
+    
+    # Create the base share URL with form and user parameters
+    base_share_url = f"{production_url}/?form_id={form.id}&user_id={form.user_id}"
+    
+    # Generate postback URL for this form
+    postback_url = generate_postback_url(form.id, form.user_id)
+    
+    # Detect current device type from request
+    current_device = detect_device_type(request.user_agent.string)
+    
+    # Create additional share URLs with UTM parameters for different platforms
+    # Now including device parameter
+    share_urls = {
+        'default': f"{base_share_url}&utm_source=default&utm_medium=referral&utm_campaign=form_share&device={current_device}",
+        'facebook': f"{base_share_url}&utm_source=facebook&utm_medium=social&utm_campaign=form_share&device={current_device}",
+        'twitter': f"{base_share_url}&utm_source=twitter&utm_medium=social&utm_campaign=form_share&device={current_device}",
+        'linkedin': f"{base_share_url}&utm_source=linkedin&utm_medium=social&utm_campaign=april_launch&device={current_device}",
+        'email': f"{base_share_url}&utm_source=email&utm_medium=email&utm_campaign=form_share&device={current_device}"
+    }
+    
+    # You can also create a generic UTM share URL if needed
+    utm_share_url = f"{base_share_url}&utm_source=other&utm_medium=referral&utm_campaign=form_share&device={current_device}"
+    
+    # Create embed URLs for iframes
+    embed_url = f"{base_url}/form/{form.id}/embed"
+    
+    # Generate iframe HTML code
+    iframe_code = f'<iframe src="{embed_url}" width="100%" height="600" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>'
+    
+    return render_template('share_form.html', form=form, 
+                          base_url=base_url,
+                          production_url=production_url,
+                          share_url=f"{base_share_url}&device={current_device}", 
+                          share_urls=share_urls,
+                          utm_share_url=utm_share_url,
+                          current_device=current_device,
+                          postback_url=postback_url,
+                          embed_url=embed_url,
+                          iframe_code=iframe_code)  # Add embed URL and iframe code to template
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'pdf'
@@ -813,6 +1100,18 @@ def update_form(form_id):
         return jsonify({'error':'Invalid payload'}), 400
 
     try:
+        # Update privacy consent requirement if provided
+        if 'requires_consent' in data:
+            form.requires_consent = data['requires_consent']
+        
+        # Update quiz settings if provided
+        if 'is_quiz' in data:
+            form.is_quiz = data['is_quiz']
+        if 'passing_score' in data:
+            form.passing_score = int(data['passing_score'])
+        if 'show_score' in data:
+            form.show_score = data['show_score']
+        
         # Begin transaction
         # Step 1: Delete all old subquestions (this will cascade to subquestion answers)
         subquestions = SubQuestion.query.join(Question).filter(Question.form_id == form_id).all()
@@ -836,7 +1135,12 @@ def update_form(form_id):
                 question_text=q_data['question_text'],
                 question_type=question_type,
                 required=q_data.get('required', False),
-                order=idx
+                order=idx,
+                # Add quiz-related fields
+                is_quiz_question=q_data.get('is_quiz_question', False),
+                correct_answer=q_data.get('correct_answer', None),
+                points=q_data.get('points', 0),
+                feedback=q_data.get('feedback', None)
             )
             
             # Process options for choice-based questions
@@ -1016,7 +1320,34 @@ def receive_postback():
     else:
         return jsonify({'status': 'error', 'message': 'Invalid tracking_id'}), 404
 
-# Modify the share_form route to include postback URL
+@app.route('/form/<int:form_id>/embed')
+def embed_form(form_id):
+    form = Form.query.get_or_404(form_id)
+    
+    # Get all questions and their subquestions
+    questions = Question.query.filter_by(form_id=form_id).order_by(Question.order).all()
+    subquestions = {}
+    for question in questions:
+        subquestions[question.id] = SubQuestion.query.filter_by(question_id=question.id).order_by(SubQuestion.order).all()
+        
+        # For each subquestion, get its nested subquestions
+        for subquestion in subquestions[question.id]:
+            try:
+                subquestion.nested_options = json.loads(subquestion.options) if subquestion.options else []
+            except Exception:
+                # Last resort fallback
+                subquestion.nested_options = []
+
+    # Sort questions by order
+    form.questions.sort(key=lambda q: q.order)
+    
+    # Check if this is an embedded view (like Google Forms' embedded=true parameter)
+    is_embedded = request.args.get('embedded') == 'true'
+    
+    # Use the dedicated embed template instead of view_form.html
+    return render_template('embed_form.html', form=form, subquestions=subquestions, 
+                          is_embedded=is_embedded, is_closed=form.is_closed)
+
 @app.route('/form/<int:form_id>/share')
 @login_required
 def share_form(form_id):
@@ -1059,6 +1390,12 @@ def share_form(form_id):
     # You can also create a generic UTM share URL if needed
     utm_share_url = f"{base_share_url}&utm_source=other&utm_medium=referral&utm_campaign=form_share&device={current_device}"
     
+    # Create embed URLs for iframes
+    embed_url = f"{base_url}/form/{form.id}/embed"
+    
+    # Generate iframe HTML code
+    iframe_code = f'<iframe src="{embed_url}" width="100%" height="600" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>'
+    
     return render_template('share_form.html', form=form, 
                           base_url=base_url,
                           production_url=production_url,
@@ -1066,7 +1403,9 @@ def share_form(form_id):
                           share_urls=share_urls,
                           utm_share_url=utm_share_url,
                           current_device=current_device,
-                          postback_url=postback_url)  # Add postback URL to template
+                          postback_url=postback_url,
+                          embed_url=embed_url,
+                          iframe_code=iframe_code)  # Add embed URL and iframe code to template
 
 @app.route('/upload_pdf', methods=['GET', 'POST'])
 @login_required
@@ -1210,8 +1549,9 @@ def upload_mindmap():
         try:
             form_data = parse_mindmap_to_form(mindmap_text)
             
+            # Create the form
             form = Form(
-                title=form_data["title"],
+                title=form_data["title"] or "Form from Mindmap",
                 description="Generated from mindmap",
                 user_id=current_user.id,
                 company_id=session.get('referral_company_id')
@@ -1219,32 +1559,34 @@ def upload_mindmap():
             db.session.add(form)
             db.session.commit()
             
-            order = 0
+            # Add questions from sections
+            question_order = 0
             for section in form_data["sections"]:
+                # Add section header as a text field
+                if section["name"]:
+                    question = Question(
+                        form_id=form.id,
+                        question_text=f"## {section['name']} ##",
+                        question_type="text",
+                        required=False,
+                        order=question_order
+                    )
+                    db.session.add(question)
+                    question_order += 1
+                
+                # Add fields from this section
                 for field in section["fields"]:
-                    type_mapping = {
-                        'text': 'text',
-                        'email': 'email',
-                        'dropdown': 'multiple_choice',
-                        'checkbox': 'checkbox',
-                        'radio': 'radio'
-                    }
-                    
-                    question_type = type_mapping.get(field["type"], 'text')
-                    
                     question = Question(
                         form_id=form.id,
                         question_text=field["label"],
-                        question_type=question_type,
-                        required=True,
-                        order=order
+                        question_type=field["type"],
+                        required=False,
+                        order=question_order
                     )
-                    
-                    if question_type in ['multiple_choice', 'checkbox', 'radio'] and field["options"]:
+                    if field["options"]:
                         question.set_options(field["options"])
-                    
                     db.session.add(question)
-                    order += 1
+                    question_order += 1
             
             db.session.commit()
             
@@ -1256,7 +1598,7 @@ def upload_mindmap():
             
         except Exception as e:
             flash(f'Error processing mindmap: {str(e)}')
-            return redirect(url_for('upload_mindmap'))
+            return redirect(request.url)
     
     return render_template('upload_mindmap.html')
 
@@ -1715,6 +2057,87 @@ def upload_template():
         return redirect(url_for('template_gallery'))
     
     return render_template('upload_template.html')
+
+@app.route('/form/<int:form_id>/embed-demo')
+@login_required
+def form_embed_demo(form_id):
+    """Demo page showing how to embed forms and handle form submission events"""
+    form = Form.query.get_or_404(form_id)
+    if form.user_id != current_user.id:
+        flash('You do not have permission to access this form')
+        return redirect(url_for('dashboard'))
+    
+    # Create embed URL
+    if request.headers.get('X-Forwarded-Proto'):
+        proto = request.headers.get('X-Forwarded-Proto')
+    else:
+        proto = 'https' if request.is_secure else 'http'
+    
+    host = request.host
+    base_url = f"{proto}://{host}"
+    
+    # Generate embed URL and iframe code
+    embed_url = f"{base_url}/form/{form.id}/embed"
+    iframe_code = f'<iframe src="{embed_url}" width="100%" height="600" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>'
+    
+    return render_template('form_embed_demo.html', 
+                          form=form, 
+                          embed_url=embed_url,
+                          iframe_code=iframe_code)
+
+@app.route('/form/<int:form_id>/toggle-status', methods=['POST'])
+@login_required
+def toggle_form_status(form_id):
+    form = Form.query.get_or_404(form_id)
+    if form.user_id != current_user.id:
+        flash('You do not have permission to modify this form', 'danger')
+        return redirect(url_for('dashboard'))
+        
+    # Toggle the is_closed status
+    form.is_closed = not form.is_closed
+    db.session.commit()
+    
+    status = "closed" if form.is_closed else "reopened"
+    flash(f'Form has been {status} successfully', 'success')
+    
+    # Check if the request is from AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'status': 'success',
+            'is_closed': form.is_closed,
+            'message': f'Form has been {status} successfully'
+        })
+    
+    # Redirect to the appropriate page based on referrer
+    referrer = request.referrer
+    if referrer and '/edit' in referrer:
+        return redirect(url_for('edit_form', form_id=form_id))
+    elif referrer and '/responses' in referrer:
+        return redirect(url_for('view_responses', form_id=form_id))
+    else:
+        return redirect(url_for('dashboard'))
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    """Route for viewing the privacy policy"""
+    return render_template('privacy_policy.html', now=datetime.now())
+
+@app.route('/terms-and-conditions')
+def terms_and_conditions():
+    """Route for viewing the terms and conditions"""
+    return render_template('terms_and_conditions.html', now=datetime.now())
+
+@app.route('/form/<int:form_id>/privacy-policy')
+def form_privacy_policy(form_id):
+    """Route for viewing a specific form's privacy policy"""
+    form = Form.query.get_or_404(form_id)
+    return render_template('privacy_policy.html', form=form, now=datetime.now())
+
+@app.route('/form/<int:form_id>/terms-and-conditions')
+def form_terms_and_conditions(form_id):
+    """Route for viewing a specific form's terms and conditions"""
+    form = Form.query.get_or_404(form_id)
+    return render_template('terms_and_conditions.html', form=form, now=datetime.now())
 
 if __name__ == '__main__':
     with app.app_context():
