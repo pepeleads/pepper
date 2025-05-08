@@ -76,214 +76,715 @@
         font-size: 0.8rem;
         font-weight: 500;
     }
+
+    .hover-shadow {
+        transition: all 0.3s ease;
+    }
+    .hover-shadow:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    .card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .badge {
+        padding: 0.5em 0.8em;
+        font-weight: 500;
+    }
+    .btn {
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+    }
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+    }
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+    }
+    .dropdown-item i {
+        width: 1.2em;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .action-button:hover {
+        transform: translateY(-1px);
+    }
+
+    .share-link-input {
+        font-family: monospace;
+        font-size: 0.875rem;
+    }
+
+    .copy-success {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: none;
+        animation: slideIn 0.3s ease;
+        z-index: 1060;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    .response-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a73e8;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    /* Fix for modal glitching */
+    .modal {
+        z-index: 1050; 
+    }
+    .modal-backdrop {
+        z-index: 1040;
+    }
+    /* Prevent modals from closing when hovering on modal content */
+    .modal.fade.show {
+        pointer-events: auto;
+    }
+    .modal-content {
+        pointer-events: auto;
+    }
+    
+    /* Fix popup flickering */
+    .popup-demo {
+        transition: none !important;
+        animation: none !important;
+        will-change: auto !important;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+        pointer-events: auto;
+    }
+    
+    .widget-preview-container {
+        position: relative;
+        isolation: isolate;
+    }
+    
+    .popup-trigger {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms" type="button" role="tab">
-                Your Forms
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">
-                Templates
-            </button>
-        </li>
-    </ul>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 mb-0">My Forms</h1>
+        <a href="{{ url_for('create_form') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Create New Form
+        </a>
+    </div>
 
-    <div class="tab-content" id="dashboardTabsContent">
-        <!-- Forms Tab -->
-        <div class="tab-pane fade show active" id="forms" role="tabpanel">
-            <div class="row mb-4">
-                <div class="col">
-                    <a href="{{ url_for('create_form') }}" class="btn btn-primary">Create New Form</a>
-                    <a href="{{ url_for('upload_mindmap') }}" class="btn btn-secondary">Upload Mindmap</a>
-                    <a href="{{ url_for('upload_pdf') }}" class="btn btn-info">Upload PDF</a>
-                </div>
-            </div>
-            
-            <div class="row">
-                {% for form in forms %}
-                <div class="col-md-4 mb-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ form.title }}</h5>
-                            <p class="card-text">{{ form.description }}</p>
-                            <p class="card-text">
-                                <small class="text-muted">
-                                    Created: {{ form.created_at.strftime('%Y-%m-%d') }}
-                                    {% if form.company %}
-                                    <br>Company: {{ form.company.name }}
-                                    {% endif %}
-                                </small>
-                            </p>
-                            <div class="btn-group">
-                                <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                <a href="{{ url_for('share_form', form_id=form.id) }}" class="btn btn-sm btn-info">Share</a>
-                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                        onclick="confirmDelete({{ form.id }}, '{{ form.title }}')">Delete</button>
-                            </div>
+    {% if forms %}
+    <div class="row g-4">
+        {% for form in forms %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm hover-shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title mb-0 text-truncate" style="max-width: 80%;">{{ form.title }}</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" 
+                                    aria-label="Form options" title="Form options">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('edit_form', form_id=form.id) }}">
+                                    <i class="fas fa-edit me-2"></i>Edit
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('view_responses', form_id=form.id) }}">
+                                    <i class="fas fa-chart-bar me-2"></i>View Responses
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="showShareModal('{{ form.id }}')">
+                                    <i class="fas fa-share-alt me-2"></i>Share
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" 
+                                    onclick="confirmDelete('{{ form.id }}', '{{ form.title }}')">
+                                    <i class="fas fa-trash-alt me-2"></i>Delete
+                                </a></li>
+                            </ul>
                         </div>
                     </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Templates Tab -->
-        <div class="tab-pane fade" id="templates" role="tabpanel">
-            <div class="row mb-4">
-                <div class="col">
-                    <h3 class="mb-3">Start a new form</h3>
-                </div>
-            </div>
-
-            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
-                <!-- Blank form card -->
-                <div class="col">
-                    <div class="card template-card h-100">
-                        <a href="{{ url_for('create_form') }}" class="text-decoration-none">
-                            <div class="template-preview d-flex align-items-center justify-content-center" style="background-color: #f8f9fa;">
-                                <i class="bi bi-plus-circle" style="font-size: 3rem; color: #e74c3c;"></i>
-                            </div>
-                            <div class="card-body text-center">
-                                <h5 class="card-title text-dark">Blank Form</h5>
-                                <p class="card-text text-muted">Create a form from scratch</p>
-                            </div>
-                        </a>
+                    
+                    <p class="card-text text-muted small mb-3">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        Created {{ form.created_at|datetime }}
+                    </p>
+                    
+                    <div class="response-stats mb-3">
+                        <div class="stat-card">
+                            <div class="stat-value">{{ form.questions|length }}</div>
+                            <div class="stat-label">Questions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ form.responses|length }}</div>
+                            <div class="stat-label">Responses</div>
+                        </div>
                     </div>
-                </div>
-                
-                {% for template in templates %}
-                <div class="col">
-                    <div class="card template-card h-100">
-                        <a href="{{ url_for('use_template', template_id=template.id) }}" class="text-decoration-none">
-                            <div class="template-preview">
-                                {% if template.preview_image %}
-                                <img src="{{ template.preview_image }}" alt="{{ template.title }}" class="card-img-top">
-                                {% else %}
-                                <div class="d-flex align-items-center justify-content-center h-100" style="background-color: #f0f0f0;">
-                                    <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #6c757d;"></i>
+
+                    <div class="card-actions">
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-sm btn-outline-primary" title="View Form">
+                                <i class="fas fa-eye me-1"></i>View
+                            </a>
+                            <a href="{{ url_for('edit_form', form_id=form.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Form">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                            <a href="{{ url_for('view_responses', form_id=form.id) }}" class="btn btn-sm btn-outline-info" title="View Responses">
+                                <i class="fas fa-chart-bar me-1"></i>Responses
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-success" title="Share Form" 
+                                    data-bs-toggle="modal" data-bs-target="#shareModal{{ form.id }}">
+                                <i class="fas fa-share-alt me-1"></i>Share
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Form" 
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal{{ form.id }}">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Delete Confirmation Modal -->
+                    <div class="modal fade" id="deleteModal{{ form.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ form.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteModalLabel{{ form.id }}">Delete Form</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
-                                {% endif %}
-                                <span class="category-badge">{{ template.category }}</span>
+                                <div class="modal-body">
+                                    <div class="alert alert-danger mb-3">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Warning:</strong> This action cannot be undone.
+                                    </div>
+                                    <p>You are about to delete the form "<strong>{{ form.title }}</strong>". This will:</p>
+                                    <ul class="mb-3">
+                                        <li>Permanently delete all responses ({{ form.responses|length }} responses)</li>
+                                        <li>Remove all questions ({{ form.questions|length }} questions)</li>
+                                        <li>Delete any associated files and data</li>
+                                        <li>Remove the form from your dashboard</li>
+                                    </ul>
+                                    <p class="text-muted small mb-0">Are you sure you want to proceed with deletion?</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </button>
+                                    <form action="{{ url_for('delete_form', form_id=form.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" class="btn btn-danger">
+                                            <i class="fas fa-trash-alt me-2"></i>Delete Form
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <h5 class="card-title text-dark">{{ template.title }}</h5>
-                                <p class="card-text text-muted">{{ template.description }}</p>
-                            </div>
-                        </a>
-                        <div class="card-footer bg-white border-top-0">
-                            <div class="d-flex justify-content-end">
-                                <a href="{{ url_for('use_template', template_id=template.id) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    Use
-                                </a>
+                        </div>
+                    </div>
+
+                    <!-- Share Form Modal -->
+                    <div class="modal fade" id="shareModal{{ form.id }}" tabindex="-1" aria-labelledby="shareModalLabel{{ form.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="shareModalLabel{{ form.id }}">Share Form</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="text-muted small mb-3">Share this form with others using the link below:</p>
+                                    <div class="input-group mb-3">
+                                        <input type="text" id="shareUrl{{ form.id }}" class="form-control share-link-input" readonly 
+                                               value="{{ url_for('view_form', form_id=form.id, _external=True) }}"
+                                               aria-label="Share link" title="Share link for your form">
+                                        <button class="btn btn-outline-primary" type="button" onclick="copyShareLink('{{ form.id }}')"
+                                                aria-label="Copy share link" title="Copy share link">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="social-share-buttons mb-3">
+                                        <h6 class="mb-2">Share on Social Media</h6>
+                                        <div class="d-flex gap-2">
+                                            <a href="https://twitter.com/intent/tweet?url={{ url_for('view_form', form_id=form.id, _external=True) | urlencode }}&text=Fill out my survey: {{ form.title | urlencode }}" 
+                                               target="_blank" rel="noopener" class="btn btn-outline-primary" title="Share on Twitter">
+                                                <i class="fab fa-twitter"></i> Twitter
+                                            </a>
+                                            <a href="https://www.facebook.com/sharer/sharer.php?u={{ url_for('view_form', form_id=form.id, _external=True) | urlencode }}" 
+                                               target="_blank" rel="noopener" class="btn btn-outline-primary" title="Share on Facebook">
+                                                <i class="fab fa-facebook"></i> Facebook
+                                            </a>
+                                            <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ url_for('view_form', form_id=form.id, _external=True) | urlencode }}&title={{ form.title | urlencode }}" 
+                                               target="_blank" rel="noopener" class="btn btn-outline-primary" title="Share on LinkedIn">
+                                                <i class="fab fa-linkedin"></i> LinkedIn
+                                            </a>
+                                            <a href="https://wa.me/?text={{ ('Fill out my survey: ' + form.title + ' ' + url_for('view_form', form_id=form.id, _external=True)) | urlencode }}" 
+                                               target="_blank" rel="noopener" class="btn btn-outline-primary" title="Share on WhatsApp">
+                                                <i class="fab fa-whatsapp"></i> WhatsApp
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-info small">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Anyone with the link can view and submit responses to your form.
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <h6 class="mb-2">Embed Options</h6>
+                                        
+                                        <!-- Embed Type Tabs -->
+                                        <ul class="nav nav-tabs mb-3" id="embedTypeTabs{{ form.id }}" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="iframe-tab{{ form.id }}" data-bs-toggle="tab" 
+                                                        data-bs-target="#iframe-content{{ form.id }}" type="button" role="tab" 
+                                                        aria-controls="iframe-content{{ form.id }}" aria-selected="true">
+                                                    <i class="fas fa-code me-1"></i> Direct Embed (iframe)
+                                                </button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="widget-tab{{ form.id }}" data-bs-toggle="tab" 
+                                                        data-bs-target="#widget-content{{ form.id }}" type="button" role="tab" 
+                                                        aria-controls="widget-content{{ form.id }}" aria-selected="false">
+                                                    <i class="fas fa-external-link-alt me-1"></i> Widget (JavaScript)
+                                                </button>
+                                            </li>
+                                        </ul>
+                                        
+                                        <!-- Tab Content -->
+                                        <div class="tab-content" id="embedTabContent{{ form.id }}">
+                                            <!-- iFrame Embed -->
+                                            <div class="tab-pane fade show active" id="iframe-content{{ form.id }}" role="tabpanel" 
+                                                 aria-labelledby="iframe-tab{{ form.id }}">
+                                                <div class="input-group mb-3">
+                                                    <textarea id="iframeCode{{ form.id }}" class="form-control share-link-input" rows="3" readonly 
+                                                              aria-label="iFrame embed code" title="iFrame embed code for your form"><iframe src="{{ url_for('view_form', form_id=form.id, _external=True) }}" width="100%" height="600" style="border: none;" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" allow="fullscreen">Your browser does not support iframes.</iframe></textarea>
+                                                    <button class="btn btn-outline-primary" type="button" onclick="copyIframeCode('{{ form.id }}')"
+                                                            aria-label="Copy iframe code" title="Copy iframe code">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- iFrame Preview -->
+                                                <div class="mt-3">
+                                                    <h6 class="mb-2">iFrame Preview</h6>
+                                                    <div class="border rounded p-3 bg-light mb-3" style="height: 350px; overflow: hidden;">
+                                                        <div class="text-center">
+                                                            <div class="text-muted small mb-2"><i class="fas fa-desktop me-1"></i>Live Form Preview</div>
+                                                            
+                                                            <!-- Direct embed of the actual form with proper settings -->
+                                                            <div class="embed-responsive" style="height: 280px; border: 1px solid #ddd; background-color: white; overflow: auto;">
+                                                                <iframe 
+                                                                    id="iframePreview{{ form.id }}" 
+                                                                    src="{{ url_for('view_form', form_id=form.id, preview=1, _external=True) }}" 
+                                                                    style="width: 100%; height: 100%; border: none;" 
+                                                                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                                                                    allow="fullscreen"
+                                                                    loading="eager"
+                                                                    title="Live form preview">
+                                                                    <p>Your browser does not support iframes. <a href="{{ url_for('view_form', form_id=form.id) }}" target="_blank">View the form directly</a>.</p>
+                                                                </iframe>
+                                                            </div>
+                                                            
+                                                            <!-- Form info below the preview -->
+                                                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                                                <span class="badge bg-light text-dark border">
+                                                                    <i class="fas fa-question-circle me-1"></i>
+                                                                    {{ form.questions|length }} Questions
+                                                                </span>
+                                                                <a href="{{ url_for('view_form', form_id=form.id) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                    <i class="fas fa-external-link-alt me-1"></i>Open Form
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-muted small">
+                                                        <i class="fas fa-info-circle me-1"></i> 
+                                                        The iframe above shows exactly how your form will appear when embedded on a website.
+                                                        When using this code, you can adjust the width and height to fit your needs.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- JavaScript Widget Embed -->
+                                            <div class="tab-pane fade" id="widget-content{{ form.id }}" role="tabpanel" 
+                                                 aria-labelledby="widget-tab{{ form.id }}">
+                                                <div class="input-group mb-3">
+                                                    <textarea id="embedCode{{ form.id }}" class="form-control share-link-input" rows="4" readonly 
+                                                              aria-label="JavaScript widget code" title="JavaScript widget code for your form"></textarea>
+                                                    <button class="btn btn-outline-primary" type="button" onclick="copyEmbedCode('{{ form.id }}')"
+                                                            aria-label="Copy JavaScript widget code" title="Copy JavaScript widget code">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- Widget Preview -->
+                                                <div class="mt-3">
+                                                    <h6 class="mb-2">Widget Preview</h6>
+                                                    <div class="border rounded p-3 bg-light mb-3 position-relative widget-preview-container" style="height: 180px; overflow: hidden;">
+                                                        <div class="text-center py-3">
+                                                            <p class="text-muted mb-3"><i class="fas fa-desktop me-2"></i>Your website content would appear here</p>
+                                                            <div class="border-top border-bottom py-2 my-2 text-muted small">example-website.com</div>
+                                                            <div class="position-absolute bottom-0 end-0 m-3">
+                                                                <button class="btn btn-primary popup-trigger" data-form-id="{{ form.id }}" style="background-color: #1a73e8; border-color: #1a73e8; position: relative; z-index: 10;">
+                                                                    <i class="fas fa-poll me-2"></i>Take Survey
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Demo popup that appears when clicking the button -->
+                                                    <div class="popup-demo border rounded p-3 bg-white mb-3 shadow" id="popupDemo{{ form.id }}" style="display: none; position: absolute; bottom: 70px; right: 20px; width: 300px; z-index: 1100;">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <h6 class="m-0">{{ form.title }}</h6>
+                                                            <button type="button" class="btn-close popup-close" data-form-id="{{ form.id }}"></button>
+                                                        </div>
+                                                        <p class="text-muted small">{{ form.description }}</p>
+                                                        <div class="text-center pt-2">
+                                                            <button class="btn btn-sm btn-primary">Start Survey <i class="fas fa-arrow-right ms-1"></i></button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <p class="text-muted small">
+                                                        <i class="fas fa-info-circle me-1"></i> 
+                                                        The JavaScript widget adds a button to your webpage that opens your form in a popup dialog. 
+                                                        <a href="{{ url_for('form_embed_demo', form_id=form.id) }}" target="_blank">View full demo</a>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            
-            <hr class="my-5">
-            
-            <div class="row mb-4">
-                <div class="col">
-                    <h3 class="mb-3">Or import a form</h3>
-                    <div class="d-flex gap-3">
-                        <a href="{{ url_for('upload_mindmap') }}" class="btn btn-outline-primary">
-                            <i class="bi bi-diagram-3"></i> Upload Mindmap
-                        </a>
-                        <a href="{{ url_for('upload_pdf') }}" class="btn btn-outline-primary">
-                            <i class="bi bi-file-pdf"></i> Upload PDF
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-clipboard-list fa-4x text-muted"></i>
+        </div>
+        <h3 class="h4 text-muted mb-3">No Forms Yet</h3>
+        <p class="text-muted mb-4">Create your first form to start collecting responses</p>
+        <a href="{{ url_for('create_form') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Create New Form
+        </a>
+    </div>
+    {% endif %}
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to delete the form "<span id="formTitle"></span>"? This action cannot be undone.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Share Form Modal -->
-<div class="modal fade" id="shareFormModal" tabindex="-1" aria-labelledby="shareFormModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="shareFormModalLabel">Share Form</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>You can share this form using the link below:</p>
-                <div class="input-group mb-3">
-                    <input type="text" id="shareUrl" class="form-control" readonly>
-                    <button class="btn btn-outline-primary" type="button" onclick="copyShareLink()">Copy</button>
-                </div>
-                <div id="copySuccess" class="alert alert-success mt-2" style="display: none;">
-                    Link copied to clipboard!
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
+<!-- Copy Success Toast -->
+<div class="copy-success" id="copySuccess">
+    <i class="fas fa-check-circle me-2"></i>
+    <span>Copied to clipboard!</span>
 </div>
 
 <script>
-function showShareModal(formId, userId) {
-    const baseUrl = window.location.origin;
-    const shareUrl = `${baseUrl}/?form_id=${formId}&user_id=${userId}`;
-    document.getElementById('shareUrl').value = shareUrl;
-    var shareModal = new bootstrap.Modal(document.getElementById('shareFormModal'));
-    shareModal.show();
+let currentFormId = null;
+
+// Fix for modal showing/hiding
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure Bootstrap JS is fully loaded before accessing modals
+    if (typeof bootstrap !== 'undefined') {
+        // Fix for modal backdrop issues
+        const fixModalIssues = function() {
+            const modals = document.querySelectorAll('.modal');
+            
+            // Fix for backdrop removal
+            modals.forEach(modal => {
+                modal.addEventListener('hidden.bs.modal', function() {
+                    // Remove any orphaned backdrops
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length > 0 && document.querySelector('.modal.show') === null) {
+                        backdrops.forEach(backdrop => {
+                            backdrop.remove();
+                        });
+                        document.body.classList.remove('modal-open');
+                        document.body.style.paddingRight = '';
+                    }
+                });
+                
+                // Fix for hover-closing behavior
+                modal.addEventListener('mouseenter', function() {
+                    // Prevent modal from closing when hovering
+                    modal.classList.add('pointer-events-auto');
+                    const modalDialog = modal.querySelector('.modal-dialog');
+                    if (modalDialog) {
+                        modalDialog.style.pointerEvents = 'auto';
+                    }
+                });
+                
+                // Ensure any buttons inside modals don't have unwanted hover effects
+                const modalButtons = modal.querySelectorAll('.modal-content button');
+                modalButtons.forEach(button => {
+                    button.addEventListener('mouseenter', function(e) {
+                        e.stopPropagation();
+                    });
+                });
+                
+                // Initialize embed code when share modal is opened via data-bs-toggle
+                if (modal.id && modal.id.startsWith('shareModal')) {
+                    modal.addEventListener('shown.bs.modal', function() {
+                        const formId = modal.id.replace('shareModal', '');
+                        // Initialize the JavaScript widget code
+                        updateEmbedCode(formId);
+                    });
+                }
+            });
+        };
+        
+        // Fix any existing modals
+        fixModalIssues();
+        
+        // Also handle dynamically created modals
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    for (let i = 0; i < mutation.addedNodes.length; i++) {
+                        const node = mutation.addedNodes[i];
+                        if (node.classList && node.classList.contains('modal')) {
+                            fixModalIssues();
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+});
+
+function showShareModal(formId) {
+    // Use Bootstrap's Modal API for consistency
+    const modalElement = document.getElementById('shareModal' + formId);
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        
+        // Initialize the embed code in the textarea before showing the modal
+        updateEmbedCode(formId);
+        
+        modal.show();
+    }
 }
 
-function copyShareLink() {
-    var copyText = document.getElementById("shareUrl");
-    copyText.select();
-    copyText.setSelectionRange(0, 99999);
-    document.execCommand("copy");
-    
-    var copySuccess = document.getElementById("copySuccess");
-    copySuccess.style.display = "block";
-    
-    setTimeout(function() {
-        copySuccess.style.display = "none";
-    }, 3000);
+function copyShareLink(formId) {
+    const shareUrl = document.getElementById('shareUrl' + formId);
+    if (shareUrl) {
+        shareUrl.select();
+        document.execCommand('copy');
+        showCopySuccess();
+    }
 }
 
+function showCopySuccess() {
+    const toast = document.getElementById('copySuccess');
+    if (toast) {
+        toast.style.display = 'block';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 2000);
+    }
+}
+
+// Update the confirmDelete function to use the correct modal ID
 function confirmDelete(formId, formTitle) {
-    document.getElementById('formTitle').textContent = formTitle;
-    document.getElementById('deleteForm').action = `/form/${formId}/delete`;
+    const modalElement = document.getElementById('deleteModal' + formId);
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+}
+
+function copyEmbedCode(formId) {
+    // Make sure the embed code is up to date
+    updateEmbedCode(formId);
     
-    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    deleteModal.show();
+    const embedCodeElement = document.getElementById('embedCode' + formId);
+    if (embedCodeElement) {
+        embedCodeElement.select();
+        document.execCommand('copy');
+        showCopySuccess();
+    }
+}
+
+// Interactive demo for embed preview
+document.addEventListener('DOMContentLoaded', function() {
+    // Track active popups
+    let activePopup = null;
+    
+    // Add click handlers for all popup triggers
+    const popupTriggers = document.querySelectorAll('.popup-trigger');
+    popupTriggers.forEach(trigger => {
+        trigger.addEventListener('click', function(e) {
+            // Prevent event from bubbling
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const formId = this.getAttribute('data-form-id');
+            const popup = document.getElementById('popupDemo' + formId);
+            
+            // If a popup is already active, hide it first
+            if (activePopup && activePopup !== popup) {
+                activePopup.style.display = 'none';
+            }
+            
+            // Toggle this popup
+            if (popup) {
+                if (popup.style.display === 'block') {
+                    popup.style.display = 'none';
+                    activePopup = null;
+                } else {
+                    popup.style.display = 'block';
+                    activePopup = popup;
+                }
+            }
+        });
+    });
+    
+    // Add click handlers for popup close buttons
+    const popupCloseButtons = document.querySelectorAll('.popup-close');
+    popupCloseButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Prevent event from bubbling
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const formId = this.getAttribute('data-form-id');
+            const popup = document.getElementById('popupDemo' + formId);
+            if (popup) {
+                popup.style.display = 'none';
+                activePopup = null;
+            }
+        });
+    });
+    
+    // Make sure clicks inside popups don't close them
+    document.querySelectorAll('.popup-demo').forEach(popup => {
+        popup.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+    
+    // Close popup when clicking outside of it
+    document.addEventListener('click', function(e) {
+        // Only handle clicks if they're not on a popup or trigger
+        if (!e.target.closest('.popup-demo') && !e.target.closest('.popup-trigger') && activePopup) {
+            activePopup.style.display = 'none';
+            activePopup = null;
+        }
+    });
+    
+    // Handle tab switching to show correct content
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            // If switching to widget tab, ensure embed code is initialized
+            if (e.target.id.includes('widget-tab')) {
+                const formId = e.target.id.replace('widget-tab', '');
+                updateEmbedCode(formId);
+                
+                // Hide any active popups when switching tabs
+                if (activePopup) {
+                    activePopup.style.display = 'none';
+                    activePopup = null;
+                }
+            }
+        });
+    });
+    
+    // Initialize the embed code on page load for all forms
+    const shareTabs = document.querySelectorAll('[id^="shareModal"]');
+    shareTabs.forEach(modal => {
+        const formId = modal.id.replace('shareModal', '');
+        // Initialize the embed code
+        updateEmbedCode(formId);
+    });
+});
+
+// Function to copy iframe code
+function copyIframeCode(formId) {
+    const iframeCodeElement = document.getElementById('iframeCode' + formId);
+    if (iframeCodeElement) {
+        iframeCodeElement.select();
+        document.execCommand('copy');
+        showCopySuccess();
+    }
+}
+
+// Function to update the embed code in the textarea
+function updateEmbedCode(formId) {
+    // Properly escape script tags
+    const scriptOpen = '<' + 'script';
+    const scriptClose = '</' + 'script' + '>';
+    
+    const embedCode = 
+        scriptOpen + ' src="' + window.location.origin + '/static/js/widget.js"' + '>' + scriptClose + '\n' +
+        scriptOpen + '>\n' +
+        'new PepperSurvey({\n' +
+        '    formId: \'' + formId + '\',\n' +
+        '    buttonText: \'Take Survey\',\n' +
+        '    buttonColor: \'#1a73e8\',\n' +
+        '    buttonPosition: \'bottom-right\'\n' +
+        '});\n' +
+        scriptClose;
+    
+    const embedCodeElement = document.getElementById('embedCode' + formId);
+    if (embedCodeElement) {
+        embedCodeElement.value = embedCode;
+    }
 }
 </script>
 {% endblock %} 

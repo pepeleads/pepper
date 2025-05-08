@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h1 class="h3 mb-0">Privacy Policy</h1>
+        </div>
+        <div class="card-body">
+            {% if form %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i> This privacy policy applies to the form: <strong>{{ form.title }}</strong>
+            </div>
+            {% endif %}
+            
+            <h2 class="h4 mt-4">1. Introduction</h2>
+            <p>This Privacy Policy explains how we collect, use, store, and protect your personal information when you use our form services. We are committed to ensuring the privacy and security of your data.</p>
+            
+            <h2 class="h4 mt-4">2. Information We Collect</h2>
+            <p>When you submit a form, we may collect the following types of information:</p>
+            <ul>
+                <li>Personal information such as name, email address, and contact details</li>
+                <li>Responses to survey questions</li>
+                <li>Device information and IP address</li>
+                <li>Tracking information such as UTM parameters</li>
+            </ul>
+            
+            <h2 class="h4 mt-4">3. How We Use Your Information</h2>
+            <p>We use the information collected for the following purposes:</p>
+            <ul>
+                <li>To provide and improve our services</li>
+                <li>To analyze form responses and generate reports</li>
+                <li>To contact you regarding your submission if necessary</li>
+                <li>To maintain the security and integrity of our platform</li>
+            </ul>
+            
+            <h2 class="h4 mt-4">4. Data Retention</h2>
+            <p>We retain your personal information only for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required by law.</p>
+            
+            <h2 class="h4 mt-4">5. Your Rights</h2>
+            <p>You have the right to:</p>
+            <ul>
+                <li>Access your personal information</li>
+                <li>Request correction of inaccurate data</li>
+                <li>Request deletion of your data</li>
+                <li>Object to processing of your data</li>
+                <li>Request a copy of your data</li>
+            </ul>
+            
+            <h2 class="h4 mt-4">6. Security</h2>
+            <p>We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.</p>
+            
+            <h2 class="h4 mt-4">7. Changes to This Policy</h2>
+            <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.</p>
+            
+            <h2 class="h4 mt-4">8. Contact Us</h2>
+            <p>If you have any questions about this Privacy Policy, please contact us at privacy@example.com.</p>
+            
+            <div class="text-muted mt-4">
+                <p>Last updated: {{ now.strftime('%B %d, %Y') }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

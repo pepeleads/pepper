@@ -5,11 +5,62 @@
 <div class="row">
     <div class="col-md-12 col-lg-12 col-xl-12 mx-auto">
         <div class="card mb-4">
-            <div class="card-header">
-                <h3>{{ form.title }}</h3>
-                <p class="text-muted mb-0">{{ form.description or 'No description' }}</p>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h3>{{ form.title }}</h3>
+                    <p class="text-muted mb-0">{{ form.description or 'No description' }}</p>
+                </div>
+                <div>
+                    <form action="{{ url_for('toggle_form_status', form_id=form.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn {% if form.is_closed %}btn-success{% else %}btn-warning{% endif %}" title="{% if form.is_closed %}Reopen Form{% else %}Close Form{% endif %}">
+                            {% if form.is_closed %}
+                            <i class="bi bi-unlock"></i> Reopen Form
+                            {% else %}
+                            <i class="bi bi-lock"></i> Close Form
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
             </div>
             <div class="card-body">
+                {% if form.is_closed %}
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> This form is currently closed and not accepting new responses.
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="requires_consent" {% if form.requires_consent %}checked{% endif %}>
+                        <label class="form-check-label" for="requires_consent">Require privacy policy and terms consent</label>
+                    </div>
+                </div>
+                
+                <!-- Quiz Settings -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h4 class="mb-0">Quiz Settings</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_quiz" {% if form.is_quiz %}checked{% endif %}>
+                            <label class="form-check-label" for="is_quiz">Enable Quiz Mode</label>
+                        </div>
+                        
+                        <div id="quiz-settings" class="{% if not form.is_quiz %}d-none{% endif %}">
+                            <div class="mb-3">
+                                <label for="passing_score" class="form-label">Passing Score (%)</label>
+                                <input type="number" class="form-control" id="passing_score" min="0" max="100" value="{{ form.passing_score or 70 }}">
+                            </div>
+                            
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="show_score" {% if form.show_score %}checked{% endif %}>
+                                <label class="form-check-label" for="show_score">Show Score to Respondents</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="questions-container">
                     {% for question in form.questions %}
                     <div class="question-card card mb-3" data-question-id="{{ question.id }}">
@@ -29,7 +80,7 @@
 
                             <!-- Select question type -->
                             <div class="mb-3">
-                                <select class="form-select question-type" aria-label="Question type">
+                                <select class="form-select question-type" aria-label="Question type" title="Select question type">
                                     <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Text</option>
                                     <option value="password" {% if question.question_type == 'password' %}selected{% endif %}>Password</option>
                                     <option value="email" {% if question.question_type == 'email' %}selected{% endif %}>Email</option>
@@ -64,10 +115,10 @@
                                             <input type="text" class="form-control option-text me-2"
                                                    value="{{ opt.text }}" 
                                                    placeholder="Option text">
-                                            <button class="btn btn-outline-danger delete-option me-2">
+                                            <button class="btn btn-outline-danger delete-option me-2" title="Delete option">
                                                 <i class="bi bi-x"></i>
                                             </button>
-                                            <button class="btn btn-outline-secondary add-subquestion">
+                                            <button class="btn btn-outline-secondary add-subquestion" title="Add sub-question">
                                                 Add Sub-question
                                             </button>
                                         </div>
@@ -81,7 +132,7 @@
                                                                    value="{{ sub.text }}" 
                                                                    placeholder="Sub-question text">
                                                             <select class="form-select subquestion-type me-2" 
-                                                                    style="max-width: 150px;">
+                                                                    style="max-width: 150px;" title="Select sub-question type">
                                                                 {% for type in ['text', 'number', 'email', 'date', 'radio', 'checkbox', 'file', 'password'] %}
                                                                 <option value="{{ type }}" 
                                                                         {% if sub.type == type %}selected{% endif %}>
@@ -89,7 +140,7 @@
                                                                 </option>
                                                                 {% endfor %}
                                                             </select>
-                                                            <button class="btn btn-outline-danger delete-subquestion">
+                                                            <button class="btn btn-outline-danger delete-subquestion" title="Delete sub-question">
                                                                 <i class="bi bi-x"></i>
                                                             </button>
                                                         </div>
@@ -100,10 +151,10 @@
                                                                 <div class="response-option-group">
                                                                     <div class="response-option input-group mb-1">
                                                                         <input type="text" class="form-control" value="{{ option.text }}" placeholder="Option text">
-                                                                        <button class="btn btn-outline-danger delete-response-option">
+                                                                        <button class="btn btn-outline-danger delete-response-option" title="Delete option">
                                                                             <i class="bi bi-x"></i>
                                                                         </button>
-                                                                        <button class="btn btn-outline-secondary add-nested-subquestion">
+                                                                        <button class="btn btn-outline-secondary add-nested-subquestion" title="Add nested question">
                                                                             <i class="bi bi-plus-circle"></i>
                                                                         </button>
                                                                     </div>
@@ -117,7 +168,7 @@
                                                                                                value="{{ nested_sub.text }}" 
                                                                                                placeholder="Nested question text">
                                                                                         <select class="form-select nested-subquestion-type me-2" 
-                                                                                                style="max-width: 130px;">
+                                                                                                style="max-width: 130px;" title="Select question type">
                                                                                             {% for type in ['text', 'number', 'email', 'date', 'radio', 'checkbox', 'file', 'password'] %}
                                                                                             <option value="{{ type }}" 
                                                                                                     {% if nested_sub.type == type %}selected{% endif %}>
@@ -125,7 +176,7 @@
                                                                                             </option>
                                                                                             {% endfor %}
                                                                                         </select>
-                                                                                        <button class="btn btn-outline-danger delete-nested-subquestion">
+                                                                                        <button class="btn btn-outline-danger delete-nested-subquestion" title="Delete nested question">
                                                                                             <i class="bi bi-x"></i>
                                                                                         </button>
                                                                                     </div>
@@ -139,7 +190,7 @@
                                                                     </div>
                                                                 </div>
                                                                 {% endfor %}
-                                                                <button type="button" class="btn btn-sm btn-outline-secondary add-response-option mt-1">Add Option</button>
+                                                                <button type="button" class="btn btn-sm btn-outline-secondary add-response-option mt-1" title="Add response option">Add Option</button>
                                                             {% endif %}
                                                         </div>
                                                     </div>
@@ -161,6 +212,66 @@
                                        {% if question.required %}checked{% endif %} 
                                        id="required-{{ question.id }}">
                                 <label class="form-check-label" for="required-{{ question.id }}">Required</label>
+                            </div>
+
+                            <!-- Quiz Question Settings -->
+                            <div class="quiz-settings-section mt-3 {% if not form.is_quiz %}d-none{% endif %}">
+                                <div class="card bg-light">
+                                    <div class="card-header">
+                                        <div class="form-check">
+                                            <input class="form-check-input is-quiz-question" type="checkbox"
+                                                {% if question.is_quiz_question %}checked{% endif %}
+                                                id="quiz-{{ question.id }}">
+                                            <label class="form-check-label" for="quiz-{{ question.id }}">
+                                                <strong>Quiz Question</strong>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="card-body quiz-question-details {% if not question.is_quiz_question %}d-none{% endif %}">
+                                        <!-- Points field -->
+                                        <div class="mb-3">
+                                            <label for="points-{{ question.id }}" class="form-label">Points</label>
+                                            <input type="number" class="form-control question-points" 
+                                                id="points-{{ question.id }}" min="0" 
+                                                value="{{ question.points or 1 }}">
+                                        </div>
+                                        
+                                        <!-- Correct Answer field (depends on question type) -->
+                                        <div class="mb-3 correct-answer-container">
+                                            <label for="correct-answer-{{ question.id }}" class="form-label">Correct Answer</label>
+                                            {% if question.question_type in ['text', 'number', 'email', 'password', 'tel', 'url'] %}
+                                                <input type="text" class="form-control correct-answer" 
+                                                    id="correct-answer-{{ question.id }}" 
+                                                    value="{{ question.correct_answer|fromjson if question.correct_answer else '' }}">
+                                            {% elif question.question_type in ['radio', 'multiple_choice'] %}
+                                                <select class="form-select correct-answer" 
+                                                        id="correct-answer-{{ question.id }}"
+                                                        title="Select correct option">
+                                                    <option value="">Select correct option</option>
+                                                    {% if question.options %}
+                                                        {% set opts = question.options|fromjson %}
+                                                        {% for opt in opts %}
+                                                            <option value="{{ loop.index0 }}" 
+                                                                {% if question.correct_answer and (question.correct_answer|fromjson) == loop.index0|string %}selected{% endif %}>
+                                                                {{ opt.text }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </select>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Feedback field -->
+                                        <div class="mb-3">
+                                            <label for="feedback-{{ question.id }}" class="form-label">Feedback</label>
+                                            <textarea class="form-control question-feedback" 
+                                                id="feedback-{{ question.id }}" rows="2">{{ question.feedback or '' }}</textarea>
+                                            <small class="form-text text-muted">
+                                                Feedback shown to users after answering this question
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -243,10 +354,40 @@
     const addQuestionBtn = document.getElementById('add-question');
     const saveFormBtn = document.getElementById('save-form');
     const formId = "{{ form.id }}";
+    const isQuizCheckbox = document.getElementById('is_quiz');
+    const quizSettingsDiv = document.getElementById('quiz-settings');
     
     // Max nesting level (to prevent infinite nesting and performance issues)
     const MAX_NESTING_LEVEL = 3;
-  
+    
+    // Toggle quiz settings visibility based on checkbox
+    isQuizCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        quizSettingsDiv.classList.remove('d-none');
+        document.querySelectorAll('.quiz-settings-section').forEach(el => {
+          el.classList.remove('d-none');
+        });
+      } else {
+        quizSettingsDiv.classList.add('d-none');
+        document.querySelectorAll('.quiz-settings-section').forEach(el => {
+          el.classList.add('d-none');
+        });
+      }
+    });
+    
+    // Handle quiz question checkbox toggle
+    qc.addEventListener('change', (e) => {
+      if (e.target.classList.contains('is-quiz-question')) {
+        const card = e.target.closest('.card');
+        const detailsDiv = card.querySelector('.quiz-question-details');
+        if (e.target.checked) {
+          detailsDiv.classList.remove('d-none');
+        } else {
+          detailsDiv.classList.add('d-none');
+        }
+      }
+    });
+    
     // 1) Add new question
     addQuestionBtn.onclick = () => qc.appendChild(createQuestionCard());
   
@@ -339,125 +480,161 @@
     });
   
     // 4) Save form
-saveFormBtn.onclick = async () => {
-  const questions = [];
-  document.querySelectorAll('.question-card').forEach((card, i) => {
-    const questionType = card.querySelector('.question-type').value;
-    const data = {
-      id: card.dataset.questionId || null,
-      question_text: card.querySelector('.question-text').value.trim(),
-      question_type: questionType,
-      required: card.querySelector('.question-required').checked,
-      order: i, 
-      options: null
-    };
-
-    // Special handling for question types with options
-    if (['radio','multiple_choice'].includes(questionType)) {
-      const opts = [];
-      
-      // Process each option group
-      card.querySelectorAll('.option-group').forEach(og => {
-        const optionText = og.querySelector('.option-text').value.trim();
-        if (!optionText) return; // Skip empty options
-        
-        const optionData = {
-          text: optionText,
-          subquestions: [] 
+    saveFormBtn.onclick = async () => {
+      const questions = [];
+      document.querySelectorAll('.question-card').forEach((card, i) => {
+        const questionType = card.querySelector('.question-type').value;
+        const data = {
+          id: card.dataset.questionId || null,
+          question_text: card.querySelector('.question-text').value.trim(),
+          question_type: questionType,
+          required: card.querySelector('.question-required').checked,
+          order: i, 
+          options: null,
+          // Quiz-related fields
+          is_quiz_question: card.querySelector('.is-quiz-question')?.checked || false,
+          points: card.querySelector('.question-points')?.value || 0,
+          feedback: card.querySelector('.question-feedback')?.value || null
         };
         
-        // Process subquestions for this option
-        og.querySelectorAll('.subquestion-card').forEach(sq => {
-          const subqText = sq.querySelector('.subquestion-text').value.trim();
-          if (!subqText) return; // Skip empty subquestions
+        // Get correct answer based on question type
+        const correctAnswerInput = card.querySelector('.correct-answer');
+        if (data.is_quiz_question && correctAnswerInput) {
+          if (questionType === 'radio' || questionType === 'multiple_choice') {
+            data.correct_answer = correctAnswerInput.value ? JSON.stringify(correctAnswerInput.value) : null;
+          } else {
+            data.correct_answer = correctAnswerInput.value ? JSON.stringify(correctAnswerInput.value) : null;
+          }
+        } else {
+          data.correct_answer = null;
+        }
+
+        // Special handling for question types with options
+        if (['radio','multiple_choice'].includes(questionType)) {
+          const opts = [];
           
-          const subqType = sq.querySelector('.subquestion-type').value;
-          const subQuestionData = { 
-            text: subqText, 
-            type: subqType,
-            options: null
-          };
-          
-          // Handle response options for radio/checkbox sub-questions
-          if (subqType === 'radio' || subqType === 'checkbox') {
-            const responseOptions = [];
+          // Process each option group
+          card.querySelectorAll('.option-group').forEach(og => {
+            const optionText = og.querySelector('.option-text').value.trim();
+            if (!optionText) return; // Skip empty options
             
-            sq.querySelectorAll('.response-option-group').forEach(rog => {
-              const optInput = rog.querySelector('.response-option input');
-              if (!optInput) return; // Skip if no input found
+            const optionData = {
+              text: optionText,
+              subquestions: [] 
+            };
+            
+            // Process subquestions for this option
+            og.querySelectorAll('.subquestion-card').forEach(sq => {
+              const subqText = sq.querySelector('.subquestion-text').value.trim();
+              if (!subqText) return; // Skip empty subquestions
               
-              const optText = optInput.value.trim();
-              if (!optText) return; // Skip empty options
-              
-              const responseOptData = {
-                text: optText,
-                subquestions: []
+              const subqType = sq.querySelector('.subquestion-type').value;
+              const subQuestionData = { 
+                text: subqText, 
+                type: subqType,
+                options: null
               };
               
-              // Process nested subquestions (level 3)
-              rog.querySelectorAll('.nested-subquestion-card').forEach(nsc => {
-                const nestedText = nsc.querySelector('.nested-subquestion-text').value.trim();
-                if (!nestedText) return; // Skip empty nested questions
+              // Handle response options for radio/checkbox sub-questions
+              if (subqType === 'radio' || subqType === 'checkbox') {
+                const responseOptions = [];
                 
-                const nestedType = nsc.querySelector('.nested-subquestion-type').value;
-                responseOptData.subquestions.push({
-                  text: nestedText,
-                  type: nestedType,
-                  // Further nesting could be added here if needed
+                sq.querySelectorAll('.response-option-group').forEach(rog => {
+                  const optInput = rog.querySelector('.response-option input');
+                  if (!optInput) return; // Skip if no input found
+                  
+                  const optText = optInput.value.trim();
+                  if (!optText) return; // Skip empty options
+                  
+                  const responseOptData = {
+                    text: optText,
+                    subquestions: []
+                  };
+                  
+                  // Process nested subquestions (level 3)
+                  rog.querySelectorAll('.nested-subquestion-card').forEach(nsc => {
+                    const nestedText = nsc.querySelector('.nested-subquestion-text').value.trim();
+                    if (!nestedText) return; // Skip empty nested questions
+                    
+                    const nestedType = nsc.querySelector('.nested-subquestion-type').value;
+                    responseOptData.subquestions.push({
+                      text: nestedText,
+                      type: nestedType,
+                      // Further nesting could be added here if needed
+                    });
+                  });
+                  
+                  responseOptions.push(responseOptData);
                 });
-              });
+                
+                if (responseOptions.length > 0) {
+                  subQuestionData.options = responseOptions;
+                }
+              }
               
-              responseOptions.push(responseOptData);
+              optionData.subquestions.push(subQuestionData);
             });
             
-            if (responseOptions.length > 0) {
-              subQuestionData.options = responseOptions;
-            }
-          }
+            opts.push(optionData);
+          });
           
-          optionData.subquestions.push(subQuestionData);
+          if (opts.length > 0) {
+            data.options = JSON.stringify(opts); // Convert to JSON string
+          }
+        }
+        
+        questions.push(data);
+      });
+
+      // Get quiz settings
+      const isQuiz = document.getElementById('is_quiz').checked;
+      const passingScore = document.getElementById('passing_score').value;
+      const showScore = document.getElementById('show_score').checked;
+      
+      // Get privacy consent setting
+      const requiresConsent = document.getElementById('requires_consent').checked;
+
+      try {
+        // Log the data being sent for debugging
+        console.log('Sending form data:', { 
+          questions, 
+          requires_consent: requiresConsent,
+          is_quiz: isQuiz,
+          passing_score: passingScore,
+          show_score: showScore
         });
         
-        opts.push(optionData);
-      });
-      
-      if (opts.length > 0) {
-        data.options = JSON.stringify(opts); // Convert to JSON string
+        const res = await fetch(`/form/${formId}/update`, {
+          method: 'POST', 
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ 
+            questions,
+            requires_consent: requiresConsent,
+            is_quiz: isQuiz,
+            passing_score: passingScore,
+            show_score: showScore
+          })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          console.log('Response:', data);
+          window.location = '/dashboard';
+        } else {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.message || errorData.error || 'Unknown error';
+          } catch (e) {
+            console.error('Error parsing error response:', e);
+          }
+          alert(`Error saving: ${errorMessage}`);
+        }
+      } catch (err) {
+        console.error('Save error:', err);
+        alert('Network error while saving form');
       }
-    }
-    
-    questions.push(data);
-  });
-
-  try {
-    // Log the data being sent for debugging
-    console.log('Sending form data:', questions);
-    
-    const res = await fetch(`/form/${formId}/update`, {
-      method: 'POST', 
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ questions })
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      console.log('Response:', data);
-      window.location = '/dashboard';
-    } else {
-      let errorMessage = 'Unknown error';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorData.error || 'Unknown error';
-      } catch (e) {
-        console.error('Error parsing error response:', e);
-      }
-      alert(`Error saving: ${errorMessage}`);
-    }
-  } catch (err) {
-    console.error('Save error:', err);
-    alert('Network error while saving form');
-  }
-};
+    };
   
     // ─── Helper Functions ──────────────────────────────────────────────────────────────
   
@@ -502,7 +679,7 @@ saveFormBtn.onclick = async () => {
             </button>
           </div>
           <div class="mb-3">
-            <select class="form-select question-type">
+            <select class="form-select question-type" title="Question type">
               <option value="text">Text</option>
               <option value="password">Password</option>
               <option value="email">Email</option>
@@ -531,6 +708,45 @@ saveFormBtn.onclick = async () => {
             <input class="form-check-input question-required" type="checkbox" id="required-new">
             <label class="form-check-label" for="required-new">Required</label>
           </div>
+          
+          <!-- Quiz Question Settings for new question -->
+          <div class="quiz-settings-section mt-3 ${isQuizCheckbox.checked ? '' : 'd-none'}">
+            <div class="card bg-light">
+              <div class="card-header">
+                <div class="form-check">
+                  <input class="form-check-input is-quiz-question" type="checkbox" id="quiz-new">
+                  <label class="form-check-label" for="quiz-new">
+                    <strong>Quiz Question</strong>
+                  </label>
+                </div>
+              </div>
+              <div class="card-body quiz-question-details d-none">
+                <!-- Points field -->
+                <div class="mb-3">
+                  <label for="points-new" class="form-label">Points</label>
+                  <input type="number" class="form-control question-points" 
+                    id="points-new" min="0" value="1">
+                </div>
+                
+                <!-- Correct Answer field (will be updated based on question type) -->
+                <div class="mb-3 correct-answer-container">
+                  <label for="correct-answer-new" class="form-label">Correct Answer</label>
+                  <input type="text" class="form-control correct-answer" 
+                    id="correct-answer-new">
+                </div>
+                
+                <!-- Feedback field -->
+                <div class="mb-3">
+                  <label for="feedback-new" class="form-label">Feedback</label>
+                  <textarea class="form-control question-feedback" 
+                    id="feedback-new" rows="2"></textarea>
+                  <small class="form-text text-muted">
+                    Feedback shown to users after answering this question
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>`;
       return div;
     }
@@ -545,7 +761,7 @@ saveFormBtn.onclick = async () => {
             <i class="bi bi-x"></i>
             <span class="visually-hidden">Delete option</span>
           </button>
-          <button class="btn btn-outline-secondary add-subquestion" title="Add a sub-question that appears when this option is selected">
+          <button class="btn btn-outline-secondary add-subquestion" title="Add sub-question">
             Add Sub-question
           </button>
         </div>
@@ -561,7 +777,7 @@ saveFormBtn.onclick = async () => {
           <div class="d-flex align-items-center mb-2">
             <input type="text" class="form-control subquestion-text me-2"
                    placeholder="Sub-question text">
-            <select class="form-select subquestion-type me-2" style="max-width:150px;">
+            <select class="form-select subquestion-type me-2" style="max-width:150px;" title="Select sub-question type">
               <option value="text">Text</option>
               <option value="number">Number</option>
               <option value="email">Email</option>
@@ -587,10 +803,10 @@ saveFormBtn.onclick = async () => {
       div.innerHTML = `
         <div class="response-option input-group mb-1">
           <input type="text" class="form-control" placeholder="Option text">
-          <button class="btn btn-outline-danger delete-response-option">
+          <button class="btn btn-outline-danger delete-response-option" title="Delete option">
             <i class="bi bi-x"></i>
           </button>
-          <button class="btn btn-outline-secondary add-nested-subquestion" title="Add a nested question for this option">
+          <button class="btn btn-outline-secondary add-nested-subquestion" title="Add nested question">
             <i class="bi bi-plus-circle"></i>
           </button>
         </div>

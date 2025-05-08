@@ -1,0 +1,30 @@
+{
+  "response_id": 19,
+  "form_id": 61,
+  "form_title": "testing",
+  "submitted_at": "2025-05-08T07:04:30.646100",
+  "utm_data": {
+    "source": null,
+    "medium": null,
+    "campaign": null,
+    "content": null,
+    "term": null
+  },
+  "device_type": "desktop",
+  "company_id": null,
+  "company_name": null,
+  "answers": [
+    {
+      "question_id": 200,
+      "question_text": "capital of India?",
+      "question_type": "text",
+      "answer_text": "New delhi"
+    },
+    {
+      "question_id": 201,
+      "question_text": "what doesnot comes in pair",
+      "question_type": "radio",
+      "answer_text": "hat"
+    }
+  ]
+}

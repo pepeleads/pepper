@@ -116,7 +116,87 @@
             This URL accepts the following parameters: username, user_id, status, payout, and transaction_id
           </small></p>
         </div>
-      </div>
+    </div>
+    
+    <!-- Embed Form Section -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-code"></i> Embed Form</h5>
+        </div>
+        <div class="card-body">
+            <p><i class="fas fa-info-circle text-primary"></i> Embed this form on your website using the iframe code below:</p>
+            
+            <div class="form-group mb-4">
+                <label for="iframe-code"><strong>Iframe HTML Code:</strong></label>
+                <div class="input-group">
+                    <textarea id="iframe-code" class="form-control" rows="3" readonly>{{ iframe_code }}</textarea>
+                    <div class="input-group-append">
+                        <button class="btn btn-primary copy-btn" data-clipboard-target="#iframe-code">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                <small class="text-muted mt-2"><i class="fas fa-info-circle"></i> Paste this code into your website's HTML to embed the form.</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="iframe-customize" class="fw-bold">Customize Iframe:</label>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="iframe-width">Width:</label>
+                        <div class="input-group">
+                            <input type="number" id="iframe-width" class="form-control" value="100" min="10" max="2000" aria-label="Iframe width value">
+                            <select id="width-unit" class="form-select" aria-label="Width unit">
+                                <option value="%">%</option>
+                                <option value="px">px</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="iframe-height">Height:</label>
+                        <div class="input-group">
+                            <input type="number" id="iframe-height" class="form-control" value="600" min="50" max="2000" aria-label="Iframe height value">
+                            <span class="input-group-text">px</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="iframe-border">Border:</label>
+                        <div class="input-group">
+                            <select id="iframe-border" class="form-select" aria-label="Iframe border option">
+                                <option value="0">No border</option>
+                                <option value="1">With border</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button id="update-iframe" class="btn btn-outline-primary mt-2">
+                    <i class="fas fa-sync-alt"></i> Update Code
+                </button>
+            </div>
+            
+            <div class="mt-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Preview</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="embed-responsive" style="min-height: 300px; border: 1px solid #dee2e6;">
+                            <iframe src="{{ embed_url }}" width="100%" height="300" frameborder="0" id="preview-iframe"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('form_embed_demo', form_id=form.id) }}" class="btn btn-info">
+                    <i class="fas fa-code"></i> See Interactive Demo & Implementation Guide
+                </a>
+                <p class="text-muted mt-2">
+                    <small><i class="fas fa-info-circle"></i> The interactive demo shows how to embed your form and handle form submission events in your website.</small>
+                </p>
+            </div>
+        </div>
+    </div>
     
     <div class="mt-4">
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
@@ -249,28 +329,45 @@ document.addEventListener('DOMContentLoaded', function() {
         link.setAttribute('href', href);
     });
     
-    // Also update any copy-to-clipboard functionality
-    const shareUrlInput = document.getElementById('shareUrlInput');
-    if (shareUrlInput) {
-        let url = shareUrlInput.value;
-        url += (url.includes('?') ? '&' : '?') + 'session_id=' + sessionId;
-        url += '&device=' + deviceType;
-        shareUrlInput.value = url;
+    // Handle iframe customization
+    document.getElementById('update-iframe').addEventListener('click', function() {
+        const width = document.getElementById('iframe-width').value;
+        const widthUnit = document.getElementById('width-unit').value;
+        const height = document.getElementById('iframe-height').value;
+        const border = document.getElementById('iframe-border').value;
+        const embedUrl = "{{ embed_url }}";
+        
+        // Generate new iframe code
+        const newIframeCode = `<iframe src="${embedUrl}" width="${width}${widthUnit}" height="${height}" frameborder="${border}" marginheight="0" marginwidth="0">Loading…</iframe>`;
+        
+        // Update the iframe code textarea
+        document.getElementById('iframe-code').value = newIframeCode;
+        
+        // Update the preview
+        const previewIframe = document.getElementById('preview-iframe');
+        previewIframe.width = width + widthUnit;
+        previewIframe.height = Math.min(height, 300); // Limit height in preview
+        previewIframe.frameBorder = border;
+    });
+    
+    // Enable copy to clipboard functionality for the iframe code
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        document.execCommand('copy');
+        
+        // Show a temporary "Copied!" message
+        const originalText = document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`).textContent;
+        document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`).textContent = 'Copied!';
+        
+        setTimeout(() => {
+            document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`).textContent = originalText;
+        }, 2000);
     }
+    
+    // Add the copyToClipboard function to the window object so it can be called from onclick
+    window.copyToClipboard = copyToClipboard;
 });
-function copyToClipboard(elementId) {
-  var copyText = document.getElementById(elementId);
-  copyText.select();
-  document.execCommand("copy");
-  
-  // Show feedback
-  var btn = event.target;
-  var originalText = btn.innerText;
-  btn.innerText = "Copied!";
-  setTimeout(function() {
-    btn.innerText = originalText;
-  }, 2000);
-}
 </script>
 <style>
 .copy-ripple {

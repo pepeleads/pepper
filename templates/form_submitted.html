@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Form Submitted - Google Forms Clone{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card my-5">
+        <div class="card-body text-center">
+          <h2 class="mb-4"><i class="bi bi-check-circle-fill text-success"></i> Thank You!</h2>
+          <p class="lead">Your response has been recorded.</p>
+          
+          {% if form.is_quiz and form.show_score and response %}
+            {% set score_percent = (response.score / response.max_score * 100) if response.max_score > 0 else 0 %}
+            {% set rounded_score = score_percent|round|int %}
+            
+            <div class="quiz-results mt-4 mb-3">
+              <h3>Quiz Results</h3>
+              
+              <div class="progress mb-3" style="height: 30px;">
+                <div class="progress-bar {% if response.passed %}bg-success{% else %}bg-warning{% endif %}" 
+                     role="progressbar" 
+                     style="width: {{ rounded_score }}%;" 
+                     aria-valuenow="0" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                  {{ rounded_score }}
+                </div>
+              </div>
+              
+              <div class="score-details">
+                <p class="fs-5">
+                  Score: <strong>{{ response.score }}/{{ response.max_score }}</strong>
+                </p>
+                
+                <p class="fs-5">
+                  Result: 
+                  {% if response.passed %}
+                    <span class="badge bg-success">PASSED</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">FAILED</span>
+                  {% endif %}
+                </p>
+                
+                <p>Passing score: {{ form.passing_score }}%</p>
+              </div>
+            </div>
+          {% endif %}
+          
+          <div class="mt-4">
+            <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-primary">Return to Form</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

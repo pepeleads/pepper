@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ form.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .question-card {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .required-badge {
+            color: #dc3545;
+            margin-left: 5px;
+        }
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .feedback.correct {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .feedback.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .form-heading {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dadce0;
+        }
+        .form-heading h3 {
+            font-size: 24px;
+            font-weight: 400;
+            color: #202124;
+        }
+        .question-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(60,64,67,.3);
+            border: 1px solid #dadce0;
+        }
+        .required-mark {
+            color: #d93025;
+            margin-left: 3px;
+        }
+        .submit-button {
+            margin-top: 20px;
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+        .submit-button:hover {
+            background-color: #1765cc;
+            border-color: #1765cc;
+        }
+        .success-message {
+            padding: 30px 20px;
+            text-align: center;
+            background-color: #e6f4ea;
+            border-radius: 8px;
+            border: 1px solid #dadce0;
+            margin-top: 20px;
+            display: none;
+            box-shadow: 0 1px 2px rgba(60,64,67,.3);
+        }
+        .success-message h4 {
+            color: #1e8e3e;
+            margin-bottom: 10px;
+        }
+        .form-control:focus, .form-select:focus, .form-check-input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 0.25rem rgba(26, 115, 232, 0.25);
+        }
+        label {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        /* Google Forms-like custom checkboxes and radio buttons */
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            margin-top: 0.25em;
+        }
+        .form-check-input:checked {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+        .form-check-label {
+            padding-left: 5px;
+        }
+        
+        /* Closed form notice */
+        .closed-form-notice {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(60,64,67,.3);
+        }
+        .closed-form-notice i {
+            color: #ff9800;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2 class="mb-4">{{ form.title }}</h2>
+        {% if form.description %}
+        <p class="mb-4">{{ form.description }}</p>
+        {% endif %}
+
+        {% if form.is_quiz %}
+        <div class="alert alert-info mb-4">
+            <h5>Quiz Information</h5>
+            <p>This is a quiz. You need to score at least {{ form.passing_score }}% to pass.</p>
+            {% if form.show_score %}
+            <p>Your score will be shown after submission.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <form id="embeddedForm" method="POST" action="{{ url_for('submit_form', form_id=form.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            {% for question in form.questions %}
+            <div class="question-card">
+                <h5>
+                    {{ question.question_text }}
+                    {% if question.is_required %}
+                    <span class="required-badge">*</span>
+                    {% endif %}
+                </h5>
+                
+                {% if question.description %}
+                <p class="text-muted">{{ question.description }}</p>
+                {% endif %}
+
+                {% if question.question_type == 'text' %}
+                <input type="text" name="answer_{{ question.id }}" class="form-control" {% if question.is_required %}required{% endif %}>
+                
+                {% elif question.question_type == 'textarea' %}
+                <textarea name="answer_{{ question.id }}" class="form-control" rows="3" {% if question.is_required %}required{% endif %}></textarea>
+                
+                {% elif question.question_type == 'radio' %}
+                {% for option in question.options %}
+                <div class="form-check">
+                    <input type="radio" name="answer_{{ question.id }}" value="{{ option }}" class="form-check-input" {% if question.is_required %}required{% endif %}>
+                    <label class="form-check-label">{{ option }}</label>
+                </div>
+                {% endfor %}
+                
+                {% elif question.question_type == 'checkbox' %}
+                {% for option in question.options %}
+                <div class="form-check">
+                    <input type="checkbox" name="answer_{{ question.id }}" value="{{ option }}" class="form-check-input">
+                    <label class="form-check-label">{{ option }}</label>
+                </div>
+                {% endfor %}
+                
+                {% elif question.question_type == 'select' %}
+                <select name="answer_{{ question.id }}" class="form-select" {% if question.is_required %}required{% endif %}>
+                    <option value="">Select an option</option>
+                    {% for option in question.options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                </select>
+                
+                {% elif question.question_type == 'date' %}
+                <input type="date" name="answer_{{ question.id }}" class="form-control" {% if question.is_required %}required{% endif %}>
+                
+                {% elif question.question_type == 'datetime-local' %}
+                <input type="datetime-local" name="answer_{{ question.id }}" class="form-control" {% if question.is_required %}required{% endif %}>
+                {% endif %}
+
+                {% if form.is_quiz and question.feedback %}
+                <div class="feedback" style="display: none;">
+                    {{ question.feedback }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" id="privacy_consent" name="privacy_consent" required>
+                <label class="form-check-label" for="privacy_consent">
+                    I consent to the processing of my data according to the <a href="{{ url_for('terms_and_conditions', form_id=form.id) }}" target="_blank">Terms and Conditions</a>
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('embeddedForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Notify parent window
+                    window.parent.postMessage({
+                        type: 'survey-submitted',
+                        data: data
+                    }, window.location.origin);
+                } else {
+                    alert(data.message || 'An error occurred. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html> 

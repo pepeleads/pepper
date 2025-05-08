@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Form Embedding Demo</h1>
+    <p class="lead">This page demonstrates how to embed your form on your website and handle form submissions.</p>
+
+    <div class="row mt-5">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Embedded Form Example</h5>
+                </div>
+                <div class="card-body">
+                    <div class="embed-responsive" style="min-height: 500px; border: 1px solid #dee2e6;">
+                        <iframe src="{{ embed_url }}" width="100%" height="500" frameborder="0" id="demo-iframe"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Form Submission Events</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p>When a user submits the form, your website can listen for events to take custom actions.</p>
+                    </div>
+                    
+                    <div id="submission-log" class="p-3 bg-light rounded" style="min-height: 200px; max-height: 300px; overflow-y: auto;">
+                        <p class="text-muted"><i>Form submission events will appear here...</i></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Implementation Code</h5>
+                </div>
+                <div class="card-body">
+                    <h6>1. HTML Embed Code</h6>
+                    <pre class="bg-light p-3 rounded"><code>{{ iframe_code|escape }}</code></pre>
+                    
+                    <h6 class="mt-4">2. Handle Form Submission</h6>
+                    <pre class="bg-light p-3 rounded"><code>// Add this code to your website
+window.addEventListener('message', function(event) {
+    // Verify the message is from our form
+    if (event.data && event.data.type === 'formSubmitted') {
+        // Form was submitted successfully
+        console.log('Form submitted! Form ID:', event.data.formId);
+        
+        // You can now take actions like:
+        // - Show a thank you message
+        // - Redirect the user
+        // - Update UI elements
+        // - Track conversion
+    }
+});</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Listen for messages from the embedded iframe
+    window.addEventListener('message', function(event) {
+        // For demonstration purposes, we'll display all messages
+        const log = document.getElementById('submission-log');
+        
+        if (event.data && event.data.type === 'formSubmitted') {
+            // Clear existing content
+            log.innerHTML = '';
+            
+            // Add success message
+            const timestamp = new Date().toLocaleTimeString();
+            const message = `
+                <div class="alert alert-success">
+                    <p><strong>${timestamp}</strong></p>
+                    <p>✅ Form submitted successfully!</p>
+                    <p>Form ID: ${event.data.formId}</p>
+                </div>
+                <p>You can now take actions like:</p>
+                <ul>
+                    <li>Show a thank you message</li>
+                    <li>Redirect the user</li>
+                    <li>Update UI elements</li>
+                    <li>Track conversion</li>
+                </ul>
+            `;
+            
+            log.innerHTML = message;
+        }
+    });
+</script>
+{% endblock %} 
